@@ -1,0 +1,294 @@
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000/api';
+
+// Create axios instance with default config
+const api: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userProfile');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Types
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'brand' | 'creator' | 'agency' | 'admin';
+  company?: string;
+  avatar?: string;
+  createdAt: string;
+}
+
+export interface Creator {
+  id: string;
+  channelName: string;
+  youtubeChannelUrl: string;
+  bio: string;
+  subscriberCount: string;
+  categories: string[];
+  typicalViews: string;
+  engagementRate: string;
+  dataSource: string;
+  socialPlatforms?: string[];
+  location?: string;
+  pricing?: {
+    videoReview: number;
+    socialPost: number;
+    sponsored: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  description: string;
+  budget: number;
+  startDate: string;
+  endDate: string;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  goals: string[];
+  deliverables: Array<{
+    type: string;
+    quantity: number;
+    price: number;
+  }>;
+  applications?: Array<{
+    creatorId: string;
+    status: 'pending' | 'approved' | 'rejected';
+    message: string;
+    appliedAt: string;
+  }>;
+  createdAt: string;
+}
+
+export interface OutreachEmail {
+  id: string;
+  campaignId: string;
+  creatorId: string;
+  subject: string;
+  body: string;
+  status: 'draft' | 'sent' | 'opened' | 'replied';
+  sentAt?: string;
+  openedAt?: string;
+  repliedAt?: string;
+}
+
+export interface OutreachStats {
+  totalEmails: number;
+  sentEmails: number;
+  openedEmails: number;
+  repliedEmails: number;
+  openRate: number;
+  responseRate: number;
+}
+
+// API Response wrapper
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+// Auth API
+export const authAPI = {
+  register: async (userData: {
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+    company?: string;
+  }): Promise<{ user: User; token: string }> => {
+    const response: AxiosResponse<ApiResponse<{ user: User; token: string }>> = 
+      await api.post('/auth/register', userData);
+    return response.data.data;
+  },
+
+  login: async (credentials: {
+    email: string;
+    password: string;
+  }): Promise<{ user: User; token: string }> => {
+    const response: AxiosResponse<ApiResponse<{ user: User; token: string }>> = 
+      await api.post('/auth/login', credentials);
+    return response.data.data;
+  },
+
+  getProfile: async (): Promise<User> => {
+    const response: AxiosResponse<ApiResponse<{ user: User }>> = 
+      await api.get('/auth/me');
+    return response.data.data.user;
+  },
+
+  updateProfile: async (userData: Partial<User>): Promise<User> => {
+    const response: AxiosResponse<ApiResponse<{ user: User }>> = 
+      await api.put('/auth/profile', userData);
+    return response.data.data.user;
+  },
+
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userProfile');
+  }
+};
+
+// Creators API
+export const creatorsAPI = {
+  getCreators: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    minSubscribers?: string;
+    maxSubscribers?: string;
+  }): Promise<{ creators: Creator[]; total: number; pages: number }> => {
+    const response: AxiosResponse<ApiResponse<{ creators: Creator[]; total: number; pages: number }>> = 
+      await api.get('/creators', { params });
+    return response.data.data;
+  },
+
+  getCreator: async (id: string): Promise<Creator> => {
+    const response: AxiosResponse<ApiResponse<{ creator: Creator }>> = 
+      await api.get(`/creators/${id}`);
+    return response.data.data.creator;
+  },
+
+  saveCreator: async (creatorData: Omit<Creator, 'id' | 'createdAt' | 'updatedAt'>): Promise<Creator> => {
+    const response: AxiosResponse<ApiResponse<{ creator: Creator }>> = 
+      await api.post('/creators', creatorData);
+    return response.data.data.creator;
+  },
+
+  updateCreator: async (id: string, creatorData: Partial<Creator>): Promise<Creator> => {
+    const response: AxiosResponse<ApiResponse<{ creator: Creator }>> = 
+      await api.put(`/creators/${id}`, creatorData);
+    return response.data.data.creator;
+  },
+
+  deleteCreator: async (id: string): Promise<void> => {
+    await api.delete(`/creators/${id}`);
+  }
+};
+
+// Campaigns API
+export const campaignsAPI = {
+  getCampaigns: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<{ campaigns: Campaign[]; total: number; pages: number }> => {
+    const response: AxiosResponse<ApiResponse<{ campaigns: Campaign[]; total: number; pages: number }>> = 
+      await api.get('/campaigns', { params });
+    return response.data.data;
+  },
+
+  getCampaign: async (id: string): Promise<Campaign> => {
+    const response: AxiosResponse<ApiResponse<{ campaign: Campaign }>> = 
+      await api.get(`/campaigns/${id}`);
+    return response.data.data.campaign;
+  },
+
+  createCampaign: async (campaignData: Omit<Campaign, 'id' | 'createdAt' | 'status'>): Promise<Campaign> => {
+    const response: AxiosResponse<ApiResponse<{ campaign: Campaign }>> = 
+      await api.post('/campaigns', campaignData);
+    return response.data.data.campaign;
+  },
+
+  updateCampaign: async (id: string, campaignData: Partial<Campaign>): Promise<Campaign> => {
+    const response: AxiosResponse<ApiResponse<{ campaign: Campaign }>> = 
+      await api.put(`/campaigns/${id}`, campaignData);
+    return response.data.data.campaign;
+  },
+
+  deleteCampaign: async (id: string): Promise<void> => {
+    await api.delete(`/campaigns/${id}`);
+  },
+
+  applyCampaign: async (campaignId: string, application: {
+    message: string;
+  }): Promise<void> => {
+    await api.post(`/campaigns/${campaignId}/apply`, application);
+  }
+};
+
+// Outreach API
+export const outreachAPI = {
+  getEmails: async (params?: {
+    campaignId?: string;
+    status?: string;
+  }): Promise<{ emails: OutreachEmail[] }> => {
+    const response: AxiosResponse<ApiResponse<{ emails: OutreachEmail[] }>> = 
+      await api.get('/outreach/emails', { params });
+    return response.data.data;
+  },
+
+  createEmail: async (emailData: {
+    campaignId: string;
+    creatorId: string;
+    subject: string;
+    body: string;
+  }): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<{ email: OutreachEmail }>> = 
+      await api.post('/outreach/emails', emailData);
+    return response.data.data.email;
+  },
+
+  sendEmail: async (emailId: string): Promise<void> => {
+    await api.post(`/outreach/emails/${emailId}/send`);
+  },
+
+  getStats: async (campaignId?: string): Promise<OutreachStats> => {
+    const params = campaignId ? { campaignId } : {};
+    const response: AxiosResponse<ApiResponse<{ stats: OutreachStats }>> = 
+      await api.get('/outreach/stats', { params });
+    return response.data.data.stats;
+  },
+
+  getTemplates: async (): Promise<Array<{ id: string; name: string; subject: string; body: string }>> => {
+    const response: AxiosResponse<ApiResponse<{ templates: Array<{ id: string; name: string; subject: string; body: string }> }>> = 
+      await api.get('/outreach/templates');
+    return response.data.data.templates;
+  }
+};
+
+// Health check
+export const healthAPI = {
+  check: async (): Promise<{ status: string; message: string; timestamp: string }> => {
+    const response: AxiosResponse<{ status: string; message: string; timestamp: string }> = 
+      await axios.get(`${API_BASE_URL.replace('/api', '')}/health`);
+    return response.data;
+  }
+};
+
+export default api; 
