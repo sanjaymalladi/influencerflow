@@ -13,7 +13,11 @@ CREATE TABLE users (
   company VARCHAR,
   avatar_url VARCHAR,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  gmail_access_token TEXT, -- Should be encrypted in transit and at rest
+  gmail_refresh_token TEXT, -- Should be encrypted in transit and at rest
+  gmail_token_expiry TIMESTAMP,
+  gmail_last_sync TIMESTAMP -- Track last time emails were checked or synced
 );
 
 -- Creators table  
@@ -53,6 +57,23 @@ CREATE TABLE campaigns (
   target_creators JSONB DEFAULT '[]',
   requirements JSONB DEFAULT '{}',
   metrics JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Contracts table
+CREATE TABLE contracts (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE NOT NULL,
+  creator_id UUID REFERENCES creators(id) ON DELETE CASCADE NOT NULL,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL, -- Link to the negotiation conversation
+  final_terms JSONB NOT NULL, -- Store agreed upon deliverables, payment, etc.
+  contract_pdf_url VARCHAR, -- Path to the generated PDF in storage
+  status VARCHAR DEFAULT 'draft' NOT NULL, -- e.g., 'draft', 'awaiting_user_signature', 'awaiting_creator_signature', 'active', 'completed', 'cancelled'
+  user_signed_at TIMESTAMP,
+  creator_signed_at TIMESTAMP,
+  created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL, -- User who initiated/approved contract
+  notes TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -178,6 +199,9 @@ ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaign_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 
+-- RLS for contracts table
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+
 -- Users can only see their own data
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = id);
@@ -199,6 +223,14 @@ CREATE POLICY "Users can view own conversations" ON conversations
   FOR SELECT USING (
     auth.uid() IN (
       SELECT user_id FROM campaigns WHERE id = conversations.campaign_id
+    )
+  );
+
+-- Contracts policies
+CREATE POLICY "Users can manage own contracts" ON contracts
+  FOR ALL USING (
+    auth.uid() IN (
+      SELECT user_id FROM campaigns WHERE id = contracts.campaign_id
     )
   );
 
@@ -248,6 +280,13 @@ CREATE TRIGGER update_outreach_emails_updated_at BEFORE UPDATE ON outreach_email
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_human_approvals_updated_at BEFORE UPDATE ON human_approvals 
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add updated_at trigger for contracts table
+CREATE TRIGGER update_contracts_updated_at BEFORE UPDATE ON contracts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_email_templates_updated_at BEFORE UPDATE ON email_templates 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Success message
