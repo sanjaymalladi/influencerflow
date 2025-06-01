@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { outreachAPI } from '@/services/apiService';
+import api from '@/services/apiService';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
@@ -112,53 +113,129 @@ const ApiDebugPanel: React.FC = () => {
 
   const testEmailSending = async () => {
     setIsLoading(true);
-    addResult({ status: 'warning', message: 'Testing email sending functionality...' });
-
+    addResult({ status: 'warning', message: '🧪 Testing email sending endpoints...', timestamp: new Date().toISOString() });
+    
     try {
-      // Get emails and find a draft to test
-      const emailsResponse = await outreachAPI.getEmails();
-      const draftEmails = emailsResponse.emails.filter(email => email.status === 'draft');
-
-      if (draftEmails.length === 0) {
-        addResult({ status: 'warning', message: 'No draft emails available for testing. Create a draft email first.' });
-        return;
+      // First, test what endpoints are available
+      const endpoints = [
+        '/outreach/emails',
+        '/outreach/pipeline', 
+        '/outreach/stats',
+        '/outreach/templates'
+      ];
+      
+      addResult({ status: 'warning', message: '🔍 Testing available endpoints...', timestamp: new Date().toISOString() });
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await api.get(endpoint);
+          addResult({ 
+            status: 'success', 
+            message: `✅ ${endpoint} - Status: ${response.status}`, 
+            data: `Response size: ${JSON.stringify(response.data).length} bytes`,
+            timestamp: new Date().toISOString() 
+          });
+        } catch (error: any) {
+          addResult({ 
+            status: 'error', 
+            message: `❌ ${endpoint} - Status: ${error.response?.status || 'Network Error'}`, 
+            data: error.response?.data?.message || error.message,
+            timestamp: new Date().toISOString() 
+          });
+        }
       }
 
-      const testEmail = draftEmails[0];
+      // Test creating a test email
+      addResult({ status: 'warning', message: '📧 Testing email creation...', timestamp: new Date().toISOString() });
+      
+      const testEmail = await outreachAPI.createEmail({
+        campaignId: 'test-campaign-id',
+        creatorId: 'test-creator-id',
+        subject: 'Test Email from Debug Panel',
+        body: 'This is a test email created by the debug panel to test the API.'
+      });
+      
       addResult({ 
-        status: 'warning', 
-        message: `Attempting to send test email: "${testEmail.subject}" (ID: ${testEmail.id})` 
+        status: 'success', 
+        message: '✅ Test email created successfully!', 
+        data: `Email ID: ${testEmail.id}`,
+        timestamp: new Date().toISOString() 
       });
 
-      try {
-        const sentEmail = await outreachAPI.sendEmail(testEmail.id);
-        addResult({ 
-          status: 'success', 
-          message: 'Email sent successfully!',
-          data: { 
-            emailId: sentEmail.id,
-            status: sentEmail.status,
-            sentAt: sentEmail.sentAt,
-            messageId: sentEmail.messageId 
+      // Test sending the email
+      addResult({ status: 'warning', message: '📤 Testing email sending...', timestamp: new Date().toISOString() });
+      
+      // Test different potential endpoints
+      const sendEndpoints = [
+        `/outreach/emails/${testEmail.id}/send`,
+        `/outreach/send/${testEmail.id}`,
+        `/outreach/send-email/${testEmail.id}`,
+        `/outreach/emails/${testEmail.id}/send-email`
+      ];
+      
+      let sendSuccess = false;
+      for (const endpoint of sendEndpoints) {
+        try {
+          const response = await api.put(endpoint);
+          addResult({ 
+            status: 'success', 
+            message: `✅ Email sent via ${endpoint}!`, 
+            data: response.data,
+            timestamp: new Date().toISOString() 
+          });
+          sendSuccess = true;
+          break;
+        } catch (error: any) {
+          addResult({ 
+            status: 'error', 
+            message: `❌ Failed to send via ${endpoint} - Status: ${error.response?.status}`, 
+            data: error.response?.data?.message || error.message,
+            timestamp: new Date().toISOString() 
+          });
+        }
+      }
+      
+      if (!sendSuccess) {
+        // Try with POST method
+        addResult({ status: 'warning', message: '🔄 Trying POST method for sending...', timestamp: new Date().toISOString() });
+        
+        for (const endpoint of sendEndpoints) {
+          try {
+            const response = await api.post(endpoint);
+            addResult({ 
+              status: 'success', 
+              message: `✅ Email sent via POST ${endpoint}!`, 
+              data: response.data,
+              timestamp: new Date().toISOString() 
+            });
+            sendSuccess = true;
+            break;
+          } catch (error: any) {
+            addResult({ 
+              status: 'error', 
+              message: `❌ Failed POST to ${endpoint} - Status: ${error.response?.status}`, 
+              data: error.response?.data?.message || error.message,
+              timestamp: new Date().toISOString() 
+            });
           }
-        });
-        toast.success('Test email sent successfully!');
-      } catch (sendError: any) {
+        }
+      }
+      
+      if (!sendSuccess) {
         addResult({ 
           status: 'error', 
-          message: `Failed to send email: ${sendError.message}`,
-          data: { 
-            error: sendError.response?.data,
-            status: sendError.response?.status 
-          }
+          message: '❌ All email sending endpoints failed. Check backend implementation.', 
+          timestamp: new Date().toISOString() 
         });
-        toast.error('Failed to send test email');
       }
-
+      
     } catch (error: any) {
+      console.error('Email sending test failed:', error);
       addResult({ 
         status: 'error', 
-        message: `Email test failed: ${error.message}` 
+        message: `❌ Email sending test failed: ${error.message}`, 
+        data: error.response?.data,
+        timestamp: new Date().toISOString() 
       });
     } finally {
       setIsLoading(false);
