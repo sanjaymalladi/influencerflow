@@ -5,6 +5,9 @@ const emailService = require('../services/emailService');
 
 const router = express.Router();
 
+// In-memory storage for mock emails
+const mockEmailsStore = new Map();
+
 // Load local JSON data as fallback
 let localCreators = [];
 let localCampaigns = [];
@@ -362,14 +365,19 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
       campaign_id: campaign.id,
       creator_id: creator.id,
       campaign_name: campaign.name,
-      creator_name: creator.channel_name,
+      creator_name: creator.channelName || creator.channel_name,
       subject,
       content: body,
       status: 'draft',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      // Store the full creator and campaign objects for sending
+      _creator: creator,
+      _campaign: campaign
     };
 
-    console.log(`✅ Mock email created with ID: ${mockEmail.id}`);
+    // Store mock email in memory for later retrieval during sending
+    mockEmailsStore.set(mockEmail.id, mockEmail);
+    console.log(`✅ Mock email created with ID: ${mockEmail.id} for creator: ${creator.channelName || creator.channel_name}`);
 
     res.status(201).json({
       success: true,
@@ -405,24 +413,19 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     
     // Check if this is a mock email (created with local data)
     if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
-      console.log('📧 Detected mock email, simulating send with local data...');
+      console.log('📧 Detected mock email, retrieving from memory...');
       
-      // Since mock emails aren't stored, we need to recreate the email data
-      // Extract timestamp from ID to find approximate creation data
-      const emailCreatedText = `Mock email created for sending`;
+      // Retrieve the stored mock email
+      email = mockEmailsStore.get(emailId);
       
-      // For mock emails, we'll create a simulated email object
-      email = {
-        id: emailId,
-        subject: `Collaboration Opportunity`,
-        content: `Hi there! We'd love to collaborate with you on our upcoming campaign.`,
-        status: 'draft',
-        creator_id: 'linus-tech-tips', // Default fallback
-        campaign_id: 'campaign-3',
-        created_at: new Date().toISOString()
-      };
+      if (!email) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mock email not found in memory. Please recreate the email.'
+        });
+      }
       
-      console.log('📧 Mock email object created for sending');
+      console.log(`📧 Retrieved mock email: "${email.subject}" for creator: ${email.creator_name}`);
     } else {
       // Try to get real email from Supabase
       if (!isSupabaseAvailable()) {
@@ -460,17 +463,24 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
 
     console.log(`📧 Found email: ${email.subject} for campaign ${email.campaign_id}`);
 
-    // Use the enhanced creator lookup function
-    const creator = await findCreatorById(email.creator_id, supabaseUserId);
-    
-    if (!creator) {
-      return res.status(404).json({
-        success: false,
-        message: 'Creator not found for this email'
-      });
+    // For mock emails, use the stored creator data; for real emails, lookup from database
+    let creator;
+    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+      creator = email._creator;
+      console.log(`✅ Using stored creator data: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
+    } else {
+      // Use the enhanced creator lookup function for real emails
+      creator = await findCreatorById(email.creator_id, supabaseUserId);
+      
+      if (!creator) {
+        return res.status(404).json({
+          success: false,
+          message: 'Creator not found for this email'
+        });
+      }
+      
+      console.log(`✅ Creator found: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
     }
-
-    console.log(`✅ Creator found: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
 
     try {
       // Extract email from creator data with multiple fallback strategies
