@@ -1284,4 +1284,56 @@ router.put('/conversations/:conversationId/stage', authenticateToken, authorizeR
   }
 });
 
+// @route   GET /api/outreach/templates
+// @desc    Get email templates (basic fallback)
+// @access  Private
+router.get('/templates', authenticateToken, async (req, res) => {
+  try {
+    // Return empty templates array since we don't have templates in minimal version
+    res.json({
+      success: true,
+      data: []
+    });
+  } catch (error) {
+    console.error('Get templates error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching templates'
+    });
+  }
+});
+
+// @route   GET /api/outreach/campaigns
+// @desc    Get campaigns from Supabase
+// @access  Private
+router.get('/campaigns', authenticateToken, async (req, res) => {
+  try {
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
+
+    // Get campaigns from Supabase
+    const { data: campaigns, error } = await dbClient
+      .from('campaigns')
+      .select('*')
+      .eq('user_id', supabaseUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error('Error fetching campaigns: ' + error.message);
+    }
+
+    res.json({
+      success: true,
+      data: { campaigns: campaigns || [] }
+    });
+
+  } catch (error) {
+    console.error('Get campaigns error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching campaigns'
+    });
+  }
+});
+
 module.exports = router; 
