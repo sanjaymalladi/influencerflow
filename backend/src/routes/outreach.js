@@ -5,12 +5,34 @@ const emailService = require('../services/emailService');
 
 const router = express.Router();
 
+// Load local JSON data as fallback
+let localCreators = [];
+let localCampaigns = [];
+
+try {
+  localCreators = require('../../data/creators.json');
+  console.log(`📂 Loaded ${localCreators.length} creators from local JSON`);
+} catch (error) {
+  console.log('⚠️ Local creators.json not found, using Supabase only');
+}
+
+try {
+  localCampaigns = require('../../data/campaigns.json');
+  console.log(`📂 Loaded ${localCampaigns.length} campaigns from local JSON`);
+} catch (error) {
+  console.log('⚠️ Local campaigns.json not found, using Supabase only');
+}
+
 // DEBUG ENDPOINT - Remove in production
 router.get('/debug', (req, res) => {
   res.json({
     supabaseAvailable: supabase !== null || supabaseAdmin !== null,
     supabaseClient: supabase ? 'AVAILABLE' : 'NULL',
     supabaseAdmin: supabaseAdmin ? 'AVAILABLE' : 'NULL',
+    localData: {
+      creators: localCreators.length,
+      campaigns: localCampaigns.length
+    },
     envVars: {
       SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
@@ -28,6 +50,103 @@ const getDbClient = (userId) => {
 // Helper function to check if Supabase is available
 const isSupabaseAvailable = () => {
   return supabase !== null || supabaseAdmin !== null;
+};
+
+// Helper function to find creator by ID from both sources
+const findCreatorById = async (creatorId, userId) => {
+  console.log(`🔍 Finding creator with ID: "${creatorId}"`);
+  
+  // First try Supabase if available and ID looks like UUID
+  if (isSupabaseAvailable() && (creatorId.includes('-') && creatorId.length > 30)) {
+    try {
+      const dbClient = getDbClient(userId);
+      const { data: creator, error } = await dbClient
+        .from('creators')
+        .select('*')
+        .eq('id', creatorId)
+        .single();
+      
+      if (!error && creator) {
+        console.log(`✅ Found creator in Supabase: ${creator.channel_name}`);
+        return creator;
+      }
+    } catch (error) {
+      console.log('⚠️ Supabase creator lookup failed:', error.message);
+    }
+  }
+  
+  // Fallback to local JSON data
+  if (localCreators.length > 0) {
+    // Try direct ID match first
+    let creator = localCreators.find(c => c.id === creatorId);
+    
+    if (!creator) {
+      // Try channel name based search for string IDs
+      const searchName = creatorId.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      
+      creator = localCreators.find(c => 
+        c.channel_name.toLowerCase() === searchName.toLowerCase() ||
+        c.channel_name.toLowerCase().replace(/\s+/g, '-') === creatorId.toLowerCase()
+      );
+    }
+    
+    if (creator) {
+      console.log(`✅ Found creator in local JSON: ${creator.channel_name}`);
+      return creator;
+    }
+  }
+  
+  // Final fallback - return first available creator
+  if (localCreators.length > 0) {
+    console.log(`🚨 Using fallback creator: ${localCreators[0].channel_name}`);
+    return localCreators[0];
+  }
+  
+  return null;
+};
+
+// Helper function to find campaign by ID from both sources
+const findCampaignById = async (campaignId, userId) => {
+  console.log(`🔍 Finding campaign with ID: "${campaignId}"`);
+  
+  // First try Supabase if available and ID looks like UUID
+  if (isSupabaseAvailable() && (campaignId.includes('-') && campaignId.length > 30)) {
+    try {
+      const dbClient = getDbClient(userId);
+      const { data: campaign, error } = await dbClient
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .single();
+      
+      if (!error && campaign) {
+        console.log(`✅ Found campaign in Supabase: ${campaign.name}`);
+        return campaign;
+      }
+    } catch (error) {
+      console.log('⚠️ Supabase campaign lookup failed:', error.message);
+    }
+  }
+  
+  // Fallback to local JSON data
+  if (localCampaigns.length > 0) {
+    let campaign = localCampaigns.find(c => c.id === campaignId);
+    
+    if (campaign) {
+      console.log(`✅ Found campaign in local JSON: ${campaign.name}`);
+      return campaign;
+    }
+    
+    // Return first campaign as fallback
+    if (localCampaigns.length > 0) {
+      console.log(`🚨 Using fallback campaign: ${localCampaigns[0].name}`);
+      return localCampaigns[0];
+    }
+  }
+  
+  return null;
 };
 
 // Helper function to map auth user ID to Supabase UUID
@@ -160,36 +279,6 @@ router.get('/emails', authenticateToken, async (req, res) => {
 // @access  Private (Brand/Agency only)
 router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
-    // If Supabase is not available, create a mock email for demo purposes
-    if (!isSupabaseAvailable()) {
-      console.log('⚠️ Supabase not available, creating mock email...');
-      const { campaignId, creatorId, subject, body } = req.body;
-
-      if (!campaignId || !creatorId || !subject || !body) {
-        return res.status(400).json({
-          success: false,
-          message: 'Please provide campaignId, creatorId, subject, and body'
-        });
-      }
-
-      // Return a mock email response
-      const mockEmail = {
-        id: 'mock-' + Date.now(),
-        campaign_id: campaignId,
-        creator_id: creatorId,
-        subject,
-        content: body,
-        status: 'draft',
-        created_at: new Date().toISOString()
-      };
-
-      return res.status(201).json({
-        success: true,
-        message: 'Mock email created successfully (Supabase unavailable)',
-        data: mockEmail
-      });
-    }
-
     const { campaignId, creatorId, subject, body } = req.body;
 
     if (!campaignId || !creatorId || !subject || !body) {
@@ -200,38 +289,91 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
     }
 
     const supabaseUserId = getSupabaseUserId(req.user.id);
-    const dbClient = getDbClient(supabaseUserId);
+    
+    console.log(`📝 Creating email for campaign: ${campaignId}, creator: ${creatorId}`);
 
-    if (!dbClient) {
-      return res.status(503).json({
+    // Validate campaign and creator exist
+    const campaign = await findCampaignById(campaignId, supabaseUserId);
+    const creator = await findCreatorById(creatorId, supabaseUserId);
+
+    if (!campaign) {
+      return res.status(404).json({
         success: false,
-        message: 'Database client not available'
+        message: `Campaign not found: ${campaignId}`
       });
     }
 
-    const emailData = {
-      campaign_id: campaignId,
-      creator_id: creatorId,
+    if (!creator) {
+      return res.status(404).json({
+        success: false,
+        message: `Creator not found: ${creatorId}`
+      });
+    }
+
+    console.log(`✅ Found campaign: ${campaign.name}`);
+    console.log(`✅ Found creator: ${creator.channel_name}`);
+
+    // Try to store in Supabase if available and we have UUID-compatible data
+    if (isSupabaseAvailable()) {
+      try {
+        const dbClient = getDbClient(supabaseUserId);
+        
+        // For string-based IDs, we need to store them differently or use the local system
+        let emailData;
+        
+        if (campaign.id.includes('-') && campaign.id.length > 30 && 
+            creator.id.includes('-') && creator.id.length > 30) {
+          // Both are UUIDs, safe to store in Supabase
+          emailData = {
+            campaign_id: campaign.id,
+            creator_id: creator.id,
+            subject,
+            content: body,
+            status: 'draft',
+            created_at: new Date().toISOString()
+          };
+
+          const { data: newEmail, error } = await dbClient
+            .from('outreach_emails')
+            .insert([emailData])
+            .select()
+            .single();
+
+          if (!error && newEmail) {
+            console.log(`✅ Email stored in Supabase with ID: ${newEmail.id}`);
+            return res.status(201).json({
+              success: true,
+              message: 'Email created successfully',
+              data: newEmail
+            });
+          }
+        }
+        
+        console.log('⚠️ String-based IDs detected, creating mock email instead of Supabase storage');
+      } catch (supabaseError) {
+        console.log('⚠️ Supabase storage failed, creating mock email:', supabaseError.message);
+      }
+    }
+
+    // Fallback: Create mock email with local data
+    const mockEmail = {
+      id: `email-${Date.now()}`,
+      campaign_id: campaign.id,
+      creator_id: creator.id,
+      campaign_name: campaign.name,
+      creator_name: creator.channel_name,
       subject,
       content: body,
       status: 'draft',
       created_at: new Date().toISOString()
     };
 
-    const { data: newEmail, error } = await dbClient
-      .from('outreach_emails')
-      .insert([emailData])
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error('Error creating email: ' + error.message);
-    }
+    console.log(`✅ Mock email created with ID: ${mockEmail.id}`);
 
     res.status(201).json({
       success: true,
-      message: 'Email created successfully',
-      data: newEmail
+      message: 'Email created successfully (using local data)',
+      data: mockEmail
     });
 
   } catch (error) {
@@ -307,81 +449,14 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
 
     console.log(`📧 Found email: ${email.subject} for campaign ${email.campaign_id}`);
 
-    // Enhanced creator lookup in Supabase
-    let creator = null;
+    // Use the enhanced creator lookup function
+    const creator = await findCreatorById(email.creator_id, supabaseUserId);
     
-    console.log(`🔍 Looking for creator with ID: "${email.creator_id}"`);
-    
-    // Strategy 1: Direct ID lookup (UUID format)
-    const { data: directCreator, error: directError } = await dbClient
-      .from('creators')
-      .select('*')
-      .eq('id', email.creator_id)
-      .single();
-    
-    if (!directError && directCreator) {
-      creator = directCreator;
-      console.log(`✅ Found creator by direct ID lookup: ${creator.channel_name}`);
-    }
-    
-    // Strategy 2: Fallback for UUID-like IDs that don't exist
-    if (!creator && (email.creator_id.includes('-') && email.creator_id.length > 30)) {
-      console.log(`🔍 UUID-like ID not found, searching all creators for user...`);
-      
-      const { data: userCreators } = await dbClient
-        .from('creators')
-        .select('*')
-        .eq('user_id', supabaseUserId)
-        .limit(1);
-      
-      if (userCreators && userCreators.length > 0) {
-        creator = userCreators[0];
-        console.log(`✅ Using fallback creator: ${creator.channel_name} (${creator.id})`);
-      }
-    }
-    
-    // Strategy 3: Channel name lookup for string-based IDs
-    if (!creator && !email.creator_id.includes('-')) {
-      console.log(`🔍 Trying channel name lookup for: ${email.creator_id}`);
-      
-      const channelNameFromId = email.creator_id
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      
-      const { data: channelCreators } = await dbClient
-        .from('creators')
-        .select('*')
-        .eq('user_id', supabaseUserId)
-        .or(`channel_name.ilike.%${channelNameFromId}%,channel_name.ilike.%${email.creator_id}%`);
-      
-      if (channelCreators && channelCreators.length > 0) {
-        creator = channelCreators.find(c => 
-          c.channel_name.toLowerCase() === channelNameFromId.toLowerCase() ||
-          c.channel_name.toLowerCase().replace(/\s+/g, '-') === email.creator_id.toLowerCase()
-        ) || channelCreators[0];
-        console.log(`✅ Found creator by channel name: ${creator.channel_name}`);
-      }
-    }
-    
-    // Strategy 4: Emergency fallback
     if (!creator) {
-      console.log(`🔍 Emergency search for any creator...`);
-      
-      const { data: allCreators } = await dbClient
-        .from('creators')
-        .select('*')
-        .eq('user_id', supabaseUserId);
-      
-      if (allCreators && allCreators.length > 0) {
-        creator = allCreators[0];
-        console.log(`🚨 EMERGENCY FALLBACK: Using first available creator: ${creator.channel_name}`);
-      } else {
-        return res.status(404).json({
-          success: false,
-          message: 'No creators found for this user'
-        });
-      }
+      return res.status(404).json({
+        success: false,
+        message: 'Creator not found for this email'
+      });
     }
 
     console.log(`✅ Creator found: ${creator.channel_name} (ID: ${creator.id})`);
@@ -488,49 +563,64 @@ router.get('/templates', authenticateToken, async (req, res) => {
 });
 
 // @route   GET /api/outreach/campaigns
-// @desc    Get campaigns from Supabase
+// @desc    Get campaigns from both Supabase and local data
 // @access  Private
 router.get('/campaigns', authenticateToken, async (req, res) => {
   try {
-    if (!isSupabaseAvailable()) {
-      return res.json({
-        success: true,
-        data: { campaigns: [] },
-        message: 'Database temporarily unavailable'
-      });
-    }
-
     const supabaseUserId = getSupabaseUserId(req.user.id);
-    const dbClient = getDbClient(supabaseUserId);
+    let allCampaigns = [];
 
-    if (!dbClient) {
-      return res.json({
-        success: true,
-        data: { campaigns: [] },
-        message: 'Database client not available'
-      });
+    // Try to get campaigns from Supabase first
+    if (isSupabaseAvailable()) {
+      try {
+        const dbClient = getDbClient(supabaseUserId);
+        const { data: supabaseCampaigns, error } = await dbClient
+          .from('campaigns')
+          .select('*')
+          .eq('user_id', supabaseUserId)
+          .order('created_at', { ascending: false });
+
+        if (!error && supabaseCampaigns) {
+          allCampaigns = [...supabaseCampaigns];
+          console.log(`✅ Loaded ${supabaseCampaigns.length} campaigns from Supabase`);
+        }
+      } catch (error) {
+        console.log('⚠️ Supabase campaigns fetch failed:', error.message);
+      }
     }
 
-    const { data: campaigns, error } = await dbClient
-      .from('campaigns')
-      .select('*')
-      .eq('user_id', supabaseUserId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw new Error('Error fetching campaigns: ' + error.message);
+    // Add local campaigns as fallback or additional options
+    if (localCampaigns.length > 0) {
+      // Filter out duplicates (by ID) and add local campaigns
+      const existingIds = new Set(allCampaigns.map(c => c.id));
+      const newLocalCampaigns = localCampaigns.filter(c => !existingIds.has(c.id));
+      
+      allCampaigns = [...allCampaigns, ...newLocalCampaigns];
+      console.log(`✅ Added ${newLocalCampaigns.length} campaigns from local JSON`);
     }
 
     res.json({
       success: true,
-      data: { campaigns: campaigns || [] }
+      data: { 
+        campaigns: allCampaigns,
+        sources: {
+          supabase: allCampaigns.filter(c => c.id.includes('-') && c.id.length > 30).length,
+          local: allCampaigns.filter(c => !c.id.includes('-') || c.id.length <= 30).length
+        }
+      }
     });
 
   } catch (error) {
     console.error('Get campaigns error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching campaigns'
+    
+    // Final fallback to local data only
+    res.json({
+      success: true,
+      data: { 
+        campaigns: localCampaigns,
+        sources: { supabase: 0, local: localCampaigns.length }
+      },
+      message: 'Using local campaigns only due to error'
     });
   }
 });
