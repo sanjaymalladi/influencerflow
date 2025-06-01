@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -234,6 +234,9 @@ const Campaigns: React.FC = () => {
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold text-[#222222]">Create New Campaign</DialogTitle>
+                  <DialogDescription>
+                    Create a new influencer marketing campaign with specific goals, budget, and deliverables.
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -607,6 +610,9 @@ const Campaigns: React.FC = () => {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-[#222222]">Edit Campaign</DialogTitle>
+              <DialogDescription>
+                Update campaign details, budget, deliverables, and timeline for your influencer marketing campaign.
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleEditSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

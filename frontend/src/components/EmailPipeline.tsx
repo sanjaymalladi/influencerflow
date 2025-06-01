@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Mail, 
@@ -239,12 +239,33 @@ const EmailDetailsModal: React.FC<EmailDetailsModalProps> = ({ email, isOpen, on
     
     try {
       setIsUpdating(true);
+      console.log('🚀 Sending email from EmailPipeline:', { id: email.id, subject: email.subject });
+      
       const updatedEmail = await outreachAPI.sendEmail(email.id);
-      toast.success('Email sent successfully!');
+      console.log('✅ Email sent successfully from EmailPipeline:', updatedEmail);
+      
+      toast.success('Email sent successfully!', {
+        description: `Email "${email.subject}" has been sent${updatedEmail.messageId ? ` (ID: ${updatedEmail.messageId})` : ''}`
+      });
+      
       onUpdate(updatedEmail);
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to send email');
+      console.error('❌ Failed to send email from EmailPipeline:', error);
+      
+      const errorMessage = error.message || error.response?.data?.message || 'Failed to send email';
+      toast.error('Failed to send email', {
+        description: errorMessage,
+        action: {
+          label: 'Try Again',
+          onClick: () => handleSendEmail()
+        }
+      });
+      
+      // If there's additional error data, log it for debugging
+      if (error.response?.data) {
+        console.error('Full error response:', error.response.data);
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -267,6 +288,9 @@ const EmailDetailsModal: React.FC<EmailDetailsModalProps> = ({ email, isOpen, on
               {email.status}
             </Badge>
           </DialogTitle>
+          <DialogDescription>
+            View detailed information about this outreach email including delivery status, tracking data, and actions.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

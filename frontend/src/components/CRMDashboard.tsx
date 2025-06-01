@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -241,6 +241,9 @@ Campaign Manager`;
                 <DialogTitle className="text-2xl font-bold text-[#222222]">
                   {thread.creator.name}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Conversation thread with {thread.creator.name} for {thread.campaign.name} campaign
+                </DialogDescription>
                 <div className="flex items-center space-x-2 mt-1">
                   <Badge className={getStatusColor(thread.status)}>
                     {getStatusIcon(thread.status)}
@@ -553,6 +556,9 @@ Campaign Manager`;
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Start Negotiation with {thread.creator.name}</DialogTitle>
+              <DialogDescription>
+                Define the terms and conditions for your collaboration proposal with {thread.creator.name}.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -957,6 +957,9 @@ const CreatorDatabase = () => {
               <DialogTitle className="text-xl font-bold text-[#222222]">
                 Select Campaign for Outreach
               </DialogTitle>
+              <DialogDescription>
+                Choose a campaign to associate with your outreach to the selected creators.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="bg-[#FFE600] bg-opacity-10 p-4 rounded-xl">

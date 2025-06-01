@@ -5,30 +5,58 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://influencerflow.onr
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased timeout for email sending
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and debug logging
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Debug logging for email sending
+    if (config.url?.includes('/send')) {
+      console.log('🔍 Sending email API request:', {
+        url: config.url,
+        baseURL: config.baseURL,
+        method: config.method,
+        headers: config.headers
+      });
+    }
+    
     return config;
   },
   (error) => {
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle auth errors and debug logging
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Debug logging for email sending responses
+    if (response.config.url?.includes('/send')) {
+      console.log('✅ Email API response:', {
+        status: response.status,
+        data: response.data
+      });
+    }
+    return response;
+  },
   (error) => {
+    console.error('❌ API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data
+    });
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('userProfile');
@@ -300,9 +328,33 @@ export const outreachAPI = {
   },
 
   sendEmail: async (emailId: string): Promise<OutreachEmail> => {
-    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
-      await api.put(`/outreach/emails/${emailId}/send`);
-    return response.data.data;
+    try {
+      console.log('🚀 Attempting to send email with ID:', emailId);
+      const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+        await api.put(`/outreach/emails/${emailId}/send`);
+      console.log('✅ Email sent successfully:', response.data);
+      return response.data.data;
+    } catch (error: any) {
+      console.error('❌ Failed to send email:', {
+        emailId,
+        error: error.response?.data || error.message,
+        status: error.response?.status
+      });
+      
+      // Provide more specific error messages
+      if (error.response?.status === 404) {
+        throw new Error('Email not found. Please refresh and try again.');
+      } else if (error.response?.status === 400) {
+        const message = error.response.data?.message || 'Invalid email data';
+        throw new Error(message);
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server error. Please try again later or contact support.');
+      } else if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Please check your connection and try again.');
+      } else {
+        throw error;
+      }
+    }
   },
 
   updateEmailStatus: async (emailId: string, statusData: {

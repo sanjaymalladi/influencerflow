@@ -14,10 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare } from "lucide-react";
+import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare, Bug } from "lucide-react";
 import { toast } from 'sonner';
+import ApiDebugPanel from '@/components/ApiDebugPanel';
 
 // Email Preview Component
 const EmailPreviewDialog = ({ 
@@ -77,6 +78,9 @@ const EmailPreviewDialog = ({
             <Eye className="w-6 h-6" />
             Review AI-Generated Emails ({currentEmailIndex + 1} of {emails.length})
           </DialogTitle>
+          <DialogDescription>
+            Review and customize each personalized email before sending to creators. You can edit any email individually to ensure it meets your requirements.
+          </DialogDescription>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
               Review each personalized email before sending. You can edit any email individually.
@@ -694,6 +698,13 @@ The AI will automatically include all campaign information and create compelling
                     'Create New Outreach Email'
                   )}
                 </DialogTitle>
+                <DialogDescription>
+                  {selectedCreators.length > 0 ? (
+                    `Generate personalized emails for ${selectedCreators.length} selected creators using AI.`
+                  ) : (
+                    'Create and send individual outreach emails to specific creators.'
+                  )}
+                </DialogDescription>
                 {selectedCreators.length > 0 && bulkFormData.campaignId && (
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">
@@ -939,27 +950,20 @@ The AI will automatically include all campaign information and create compelling
         </div>
 
         {/* Tabs Navigation */}
-        <Tabs defaultValue="emails" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-            <TabsTrigger value="emails" className="flex items-center space-x-2">
-              <Mail className="w-4 h-4" />
-              <span>Email List</span>
-            </TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex items-center space-x-2">
-              <GitBranch className="w-4 h-4" />
-              <span>Pipeline</span>
-            </TabsTrigger>
-            <TabsTrigger value="crm" className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4" />
-              <span>CRM</span>
-            </TabsTrigger>
-            <TabsTrigger value="ai-approvals" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
-              <span>AI Approvals</span>
+        <Tabs defaultValue="outreach" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="outreach">Outreach</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="crm">CRM</TabsTrigger>
+            <TabsTrigger value="ai-approvals">AI Approvals</TabsTrigger>
+            <TabsTrigger value="debug">
+              <Bug className="w-4 h-4 mr-2" />
+              Debug
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="emails" className="space-y-6">
+          <TabsContent value="outreach" className="space-y-6">
         {/* Stats */}
             <div className="grid md:grid-cols-4 gap-6">
           <Card className="p-6 rounded-2xl border border-gray-200">
@@ -1071,6 +1075,10 @@ The AI will automatically include all campaign information and create compelling
         </Card>
           </TabsContent>
 
+          <TabsContent value="analytics" className="space-y-6">
+            {/* Analytics content */}
+          </TabsContent>
+
           <TabsContent value="pipeline" className="space-y-6">
             <EmailPipeline />
           </TabsContent>
@@ -1081,6 +1089,18 @@ The AI will automatically include all campaign information and create compelling
 
           <TabsContent value="ai-approvals" className="space-y-6">
             <PendingApprovals onUpdate={loadData} />
+          </TabsContent>
+
+          <TabsContent value="debug" className="space-y-6">
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-[#222222] mb-2">Email Debugging & Diagnostics</h2>
+                <p className="text-gray-600">
+                  Use this panel to diagnose email sending issues and test API connectivity.
+                </p>
+              </div>
+              <ApiDebugPanel />
+            </div>
           </TabsContent>
         </Tabs>
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { 
   Clock, 
   CheckCircle2, 
@@ -241,6 +241,9 @@ const PendingApprovals: React.FC<PendingApprovalsProps> = ({ onUpdate }) => {
               <Brain className="w-5 h-5 mr-2" />
               Review AI Response - Email #{selectedApproval?.emailId}
             </DialogTitle>
+            <DialogDescription>
+              Review the creator's reply and the AI-generated response before approving or modifying it.
+            </DialogDescription>
           </DialogHeader>
 
           {selectedApproval && (
