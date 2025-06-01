@@ -1,185 +1,131 @@
 # InfluencerFlow Backend
 
-Node.js/Express API server for the InfluencerFlow platform with AI-powered conversation handling and email automation.
+> Express.js API server with Supabase integration for the InfluencerFlow platform
 
-## 🚀 Features
+## 🚀 Quick Start
 
-- **RESTful API**: Comprehensive API for all platform features
-- **AI Conversation Handling**: Intelligent reply detection and response generation
-- **Gmail Integration**: Real-time email processing and reply detection
-- **JWT Authentication**: Secure token-based authentication
-- **Role-based Authorization**: Different permissions for different user types
-- **Campaign Management**: Full CRUD operations for campaigns
-- **Creator Database**: Save and manage creator profiles
-- **Outreach Automation**: Email campaign creation and tracking
-
-## 🛠️ Technology Stack
-
-- **Node.js** with Express.js
-- **Gmail API** for email integration
-- **Google Gemini AI** for conversation analysis
-- **SocialBlade API** for creator analytics
-- **JWT** for authentication
-- **File-based storage** (easily upgradeable to database)
-
-## 📦 Installation
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Fill in your API keys and configuration in the `.env` file.
-
-3. **Start the server**
-   ```bash
-   # Development
-   npm run dev
-   
-   # Production
-   npm start
-   ```
-
-## 🔧 Configuration
-
-### Required Environment Variables
+### Environment Variables
+Create a `.env` file with the following variables:
 
 ```env
+# Database
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+
+# Authentication
+JWT_SECRET=your_jwt_secret_key
+
+# Email Integration
+GMAIL_CLIENT_ID=your_gmail_client_id
+GMAIL_CLIENT_SECRET=your_gmail_client_secret
+GMAIL_REFRESH_TOKEN=your_gmail_refresh_token
+
 # Server Configuration
 PORT=5000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key
-JWT_EXPIRE=7d
-
-# Gmail API Configuration
-GMAIL_CLIENT_ID=your-gmail-client-id
-GMAIL_CLIENT_SECRET=your-gmail-client-secret
-GMAIL_REDIRECT_URI=http://localhost:5000/auth/gmail/callback
-GMAIL_REFRESH_TOKEN=your-gmail-refresh-token
-
-# Email Configuration
-DEFAULT_FROM_EMAIL=outreach@yourdomain.com
-DEFAULT_FROM_NAME=Your Company Name
 ```
 
-### Optional Environment Variables
-
-```env
-# AI Configuration
-GEMINI_API_KEY=your-gemini-api-key
-
-# SocialBlade Configuration
-SOCIALBLADE_API_KEY=your-socialblade-api-key
-
-# MailerSend Configuration
-MAILERSEND_API_KEY=your-mailersend-api-key
-MAILERSEND_DOMAIN=your-verified-domain.com
+### Installation
+```bash
+npm install
+npm run dev
 ```
 
-## 📊 API Endpoints
+## 📡 API Endpoints
 
 ### Authentication
 - `POST /api/auth/login` - User login
 - `POST /api/auth/register` - User registration
-- `GET /api/auth/me` - Get current user
+- `GET /api/auth/profile` - Get user profile
 
 ### Creators
-- `GET /api/creators` - Get all creators
-- `POST /api/creators` - Save new creator
-- `GET /api/creators/:id` - Get specific creator
+- `GET /api/creators` - Get saved creators
+- `POST /api/creators` - Save a creator
 - `PUT /api/creators/:id` - Update creator
 - `DELETE /api/creators/:id` - Delete creator
+- `GET /api/creators/search` - Search creators
 
 ### Campaigns
-- `GET /api/campaigns` - Get all campaigns
-- `POST /api/campaigns` - Create new campaign
-- `GET /api/campaigns/:id` - Get specific campaign
+- `GET /api/campaigns` - Get campaigns
+- `POST /api/campaigns` - Create campaign
 - `PUT /api/campaigns/:id` - Update campaign
 - `DELETE /api/campaigns/:id` - Delete campaign
 
 ### Outreach
-- `GET /api/outreach/emails` - Get outreach emails
-- `POST /api/outreach/emails` - Create new email
-- `PUT /api/outreach/emails/:id/send` - Send email
-- `GET /api/outreach/conversations` - Get AI conversations
-- `GET /api/outreach/pending-approvals` - Get pending human approvals
+- `GET /api/outreach/emails` - Get emails
+- `POST /api/outreach/send` - Send email
+- `GET /api/outreach/templates` - Get templates
 
 ### Automation
-- `POST /api/automation/process-negotiation` - Process negotiation with AI
-- `GET /api/automation/negotiations/:campaignId` - Get campaign negotiations
+- `POST /api/automation/contracts` - Generate contracts
+- `GET /api/automation/conversations` - Get conversations
 
-## 🤖 AI Features
+### Admin
+- `POST /api/setup-demo` - Setup demo user and data (requires service key)
 
-### Conversation Analysis
-- **Intent Detection**: Automatically identifies creator intent (interest, negotiation, rejection)
-- **Sentiment Analysis**: Analyzes tone and sentiment of responses
-- **Term Extraction**: Extracts negotiation terms (budget, timeline, deliverables)
-- **Smart Escalation**: Escalates complex negotiations to humans
+## 🔧 Setup Demo Data
 
-### Response Generation
-- **Context-Aware**: Generates responses based on conversation stage
-- **Professional Tone**: Maintains brand voice and professionalism
-- **Negotiation Handling**: Handles counter-offers and terms discussions
-- **Contract Preparation**: Initiates contract generation for agreed terms
+To populate the database with demo creators, call the setup endpoint:
 
-## 🔒 Security
-
-- **JWT Authentication**: Secure token-based authentication
-- **Rate Limiting**: API rate limiting to prevent abuse
-- **Input Validation**: Comprehensive input sanitization
-- **CORS Configuration**: Proper cross-origin resource sharing
-- **Helmet**: Security headers for protection
-
-## 📁 Project Structure
-
-```
-backend/
-├── src/
-│   ├── routes/           # API route handlers
-│   ├── services/         # Business logic services
-│   ├── middleware/       # Express middleware
-│   ├── utils/           # Utility functions
-│   └── index.js         # Main application entry
-├── data/                # File-based data storage
-├── .env.example         # Environment variables template
-├── package.json         # Dependencies and scripts
-└── README.md           # This file
+```bash
+curl -X POST http://localhost:5000/api/setup-demo
 ```
 
-## 🚀 Deployment
+This will:
+1. Create a demo user in Supabase Auth
+2. Add sample creators to the database
+3. Setup initial data for testing
 
-### Production Checklist
-- [ ] Set up production database
-- [ ] Configure production environment variables
-- [ ] Set up SSL certificates
-- [ ] Configure email authentication (DKIM/SPF)
-- [ ] Set up monitoring and logging
-- [ ] Configure backup systems
+## 🐳 Docker Deployment
 
-### Health Check
-The server provides a health check endpoint at `/health` that returns:
-```json
-{
-  "status": "OK",
-  "message": "InfluencerFlow API is running",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "environment": "development",
-  "port": 5000
-}
+The backend includes a Dockerfile for containerized deployment:
+
+```bash
+docker build -t influencerflow-backend .
+docker run -p 5000:5000 influencerflow-backend
 ```
 
-## 🤝 Contributing
+## 📊 Database Schema
 
-See the main [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
+The API uses Supabase (PostgreSQL) with these main tables:
+- `users` - User authentication and profiles
+- `creators` - Influencer data and analytics
+- `campaigns` - Marketing campaigns
+- `outreach_emails` - Email tracking
+- `conversations` - AI conversation analysis
 
-## 📝 License
+See `../database-schema.sql` for the complete schema.
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details. 
+## 🛡️ Security Features
+
+- JWT authentication
+- Rate limiting (100 requests per 15 minutes)
+- CORS protection
+- Input validation
+- Password hashing with bcrypt
+- Environment variable protection
+
+## 📝 Development
+
+### Scripts
+- `npm run dev` - Development server with nodemon
+- `npm start` - Production server
+- `npm test` - Run tests (if available)
+
+### Project Structure
+```
+src/
+├── config/          # Configuration files
+├── middleware/      # Express middleware
+├── routes/         # API route handlers
+├── services/       # Business logic
+└── index.js        # Main server file
+```
+
+## 🌐 Production Deployment
+
+The backend is configured for deployment on Render with automatic Docker builds.
+
+Environment variables are managed through the Render dashboard and `render.yaml` configuration. 
