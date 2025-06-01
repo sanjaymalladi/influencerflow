@@ -82,6 +82,21 @@ app.use('/api/outreach', outreachRoutes);
 app.use('/api/socialblade', socialbladeRoutes);
 app.use('/api/automation', automationRoutes);
 
+// Setup endpoint for demo data (admin only)
+app.post('/api/setup-demo', async (req, res) => {
+  try {
+    const { createDemoUserAndData } = require('../create-demo-user-and-data');
+    const result = await createDemoUserAndData();
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error setting up demo data: ' + error.message
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
