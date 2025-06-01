@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { supabase } = require('../config/supabase');
+const { supabase, supabaseAdmin } = require('../config/supabase');
 
 const router = express.Router();
 
@@ -83,9 +83,13 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const supabaseUserId = getSupabaseUserId(req.user.id);
+    
+    // Use admin client for demo user to bypass RLS
+    const isDemoUser = supabaseUserId === '550e8400-e29b-41d4-a716-446655440000';
+    const dbClient = isDemoUser ? supabaseAdmin : supabase;
 
     // Check if creator already exists for this user
-    const { data: existingCreators, error: findError } = await supabase
+    const { data: existingCreators, error: findError } = await dbClient
       .from('creators')
       .select('*')
       .eq('user_id', supabaseUserId)
@@ -132,7 +136,7 @@ router.post('/', authenticateToken, async (req, res) => {
     };
 
     // Insert creator into Supabase
-    const { data: newCreator, error: insertError } = await supabase
+    const { data: newCreator, error: insertError } = await dbClient
       .from('creators')
       .insert([creatorData])
       .select()
@@ -144,7 +148,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Log analytics event (optional, may fail if table doesn't exist)
     try {
-      await supabase
+      await dbClient
         .from('analytics_events')
         .insert([{
           user_id: supabaseUserId,
@@ -182,7 +186,11 @@ router.get('/', authenticateToken, async (req, res) => {
     const { page = 1, limit = 20, category, platform, search, status = 'active' } = req.query;
     const supabaseUserId = getSupabaseUserId(req.user.id);
     
-    let query = supabase
+    // Use admin client for demo user to bypass RLS
+    const isDemoUser = supabaseUserId === '550e8400-e29b-41d4-a716-446655440000';
+    const dbClient = isDemoUser ? supabaseAdmin : supabase;
+    
+    let query = dbClient
       .from('creators')
       .select('*')
       .eq('user_id', supabaseUserId)
@@ -210,7 +218,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     // Get total count for pagination
-    const { count } = await supabase
+    const { count } = await dbClient
       .from('creators')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', supabaseUserId);
