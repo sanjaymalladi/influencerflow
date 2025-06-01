@@ -122,16 +122,6 @@ const Navigation = () => {
             >
               Outreach
             </Link>
-            <Link 
-              to="/analytics" 
-              className={`transition-colors ${
-                isActive('/analytics') 
-                  ? 'text-[#FFE600] font-semibold' 
-                  : 'text-[#222222] hover:text-[#FFE600]'
-              }`}
-            >
-              Analytics
-            </Link>
           </div>
         </div>
         

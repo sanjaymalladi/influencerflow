@@ -16,9 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare, Bug } from "lucide-react";
+import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare } from "lucide-react";
 import { toast } from 'sonner';
-import ApiDebugPanel from '@/components/ApiDebugPanel';
 
 // Email Preview Component
 const EmailPreviewDialog = ({ 
@@ -951,16 +950,11 @@ The AI will automatically include all campaign information and create compelling
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="outreach" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="crm">CRM</TabsTrigger>
             <TabsTrigger value="ai-approvals">AI Approvals</TabsTrigger>
-            <TabsTrigger value="debug">
-              <Bug className="w-4 h-4 mr-2" />
-              Debug
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="outreach" className="space-y-6">
@@ -1075,10 +1069,6 @@ The AI will automatically include all campaign information and create compelling
         </Card>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            {/* Analytics content */}
-          </TabsContent>
-
           <TabsContent value="pipeline" className="space-y-6">
             <EmailPipeline />
           </TabsContent>
@@ -1089,18 +1079,6 @@ The AI will automatically include all campaign information and create compelling
 
           <TabsContent value="ai-approvals" className="space-y-6">
             <PendingApprovals onUpdate={loadData} />
-          </TabsContent>
-
-          <TabsContent value="debug" className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold text-[#222222] mb-2">Email Debugging & Diagnostics</h2>
-                <p className="text-gray-600">
-                  Use this panel to diagnose email sending issues and test API connectivity.
-                </p>
-              </div>
-              <ApiDebugPanel />
-            </div>
           </TabsContent>
         </Tabs>
 

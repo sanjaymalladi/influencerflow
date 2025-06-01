@@ -21,9 +21,6 @@ const Index = () => {
               <Link to="/outreach" className="text-[#222222] hover:text-[#FFE600] transition-colors">
                 Outreach
               </Link>
-              <Link to="/analytics" className="text-[#222222] hover:text-[#FFE600] transition-colors">
-                Analytics
-              </Link>
             </div>
           </div>
           <div className="flex items-center space-x-4">

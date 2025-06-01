@@ -507,12 +507,21 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       // Extract email from creator data with multiple fallback strategies
       let recipientEmail = null;
       
-      // Strategy 1: Direct contactEmail field
-      if (creator.contactEmail) {
+      // Strategy 1: Check for Sanjay specifically
+      const creatorName = creator.channelName || creator.channel_name || '';
+      if (creatorName.toLowerCase().includes('sanjay') || 
+          creator.id === 'sanjay-malladi' || 
+          creator.id === '1' ||
+          creatorName.toLowerCase().includes('malladi')) {
+        recipientEmail = 'sanjaymallladi12@gmail.com';
+        console.log(`📧 Using Sanjay's email: ${recipientEmail}`);
+      }
+      // Strategy 2: Direct contactEmail field
+      else if (creator.contactEmail) {
         recipientEmail = creator.contactEmail;
         console.log(`📧 Using contactEmail: ${recipientEmail}`);
       }
-      // Strategy 2: Extract from bio (business emails or general emails)
+      // Strategy 3: Extract from bio (business emails or general emails)
       else if (creator.bio) {
         // Look for business emails first
         let emailMatch = creator.bio.match(/business@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
@@ -526,7 +535,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         }
       }
       
-      // Strategy 3: Generate from channel name
+      // Strategy 4: Generate from channel name
       if (!recipientEmail) {
         const channelName = creator.channelName || creator.channel_name || 'creator';
         recipientEmail = `${channelName.toLowerCase().replace(/\s+/g, '')}@example.com`;

@@ -12,7 +12,6 @@ import Dashboard from "./pages/Dashboard";
 import CreatorDatabase from "./pages/CreatorDatabase";
 import Campaigns from "./pages/Campaigns";
 import Outreach from "./pages/Outreach";
-import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import DebugGemini from './components/DebugGemini';
@@ -51,11 +50,6 @@ const App = () => (
             <Route path="/outreach" element={
               <ProtectedRoute>
                 <Outreach />
-              </ProtectedRoute>
-            } />
-            <Route path="/analytics" element={
-              <ProtectedRoute>
-                <Analytics />
               </ProtectedRoute>
             } />
             <Route path="/settings" element={
