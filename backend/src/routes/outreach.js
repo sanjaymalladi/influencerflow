@@ -264,9 +264,22 @@ router.get('/emails', authenticateToken, async (req, res) => {
       throw new Error('Error fetching emails: ' + error.message);
     }
 
+    // Merge Supabase emails with mock emails from memory
+    const allEmails = [...(emails || [])];
+    
+    // Add mock emails from memory store
+    for (const [emailId, mockEmail] of mockEmailsStore.entries()) {
+      // Remove internal fields before sending to frontend
+      const { _creator, _campaign, ...publicEmail } = mockEmail;
+      allEmails.push(publicEmail);
+    }
+
+    // Sort by creation date (newest first)
+    allEmails.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
     res.json({
       success: true,
-      data: { emails: emails || [] }
+      data: { emails: allEmails }
     });
 
   } catch (error) {
@@ -507,7 +520,10 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         console.log(`📧 Generated email: ${recipientEmail}`);
       }
       
-      console.log(`📧 Sending email to: ${recipientEmail}`);
+      console.log(`📧 FINAL DEBUG - Creator: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
+      console.log(`📧 FINAL DEBUG - Email will be sent to: ${recipientEmail}`);
+      console.log(`📧 FINAL DEBUG - Subject: ${email.subject}`);
+      console.log(`📧 FINAL DEBUG - Content length: ${email.content?.length || 0} characters`);
       
       const emailResult = await emailService.sendEmail({
         to: recipientEmail,
@@ -552,9 +568,15 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         }
       }
       
-      // For mock emails, just return the merged data
+      // For mock emails, update the memory store and return merged data
       if (!updatedEmail) {
         updatedEmail = { ...email, ...updateData };
+        
+        // Update the mock email in memory store
+        if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+          mockEmailsStore.set(emailId, updatedEmail);
+          console.log(`📧 Updated mock email in memory store: ${emailId}`);
+        }
       }
     
       console.log(`✅ Email sent successfully to ${recipientEmail}`);
