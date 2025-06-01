@@ -59,7 +59,7 @@ const getGmailClient = async (userTokens, onTokensRefreshed) => {
         gmail_refresh_token: tokens.refresh_token, // Save the new refresh token
         gmail_token_expiry: tokens.expiry_date,
       });
-    } else {
+      } else {
       // Only access token was refreshed.
       console.log('Gmail access token refreshed.');
       await onTokensRefreshed({
@@ -88,7 +88,7 @@ const getGmailClient = async (userTokens, onTokensRefreshed) => {
                 gmail_refresh_token: credentials.refresh_token || userTokens.gmail_refresh_token, // use new if provided
                 gmail_token_expiry: credentials.expiry_date,
             });
-       }
+      }
     } catch (error) {
       console.error('Error explicitly refreshing Gmail access token:', error);
       // If refresh fails, it often means the refresh token is invalid/revoked.
@@ -152,7 +152,7 @@ const sendEmail = async ({ to, subject, body, inReplyTo, threadId }, userTokens,
     });
     console.log('Email sent successfully. Message ID:', response.data.id, 'Thread ID:', response.data.threadId);
     return response.data; 
-  } catch (error) {
+    } catch (error) {
     console.error('Error sending email via Gmail:', error.response ? JSON.stringify(error.response.data) : error.message);
     throw new Error(`Failed to send email: ${error.message}`);
   }
@@ -207,12 +207,12 @@ const getEmailDetails = async ({ messageId, format = 'full' }, userTokens, onTok
   const gmail = await getGmailClient(userTokens, onTokensRefreshed);
   try {
     const response = await gmail.users.messages.get({
-      userId: 'me',
-      id: messageId,
+        userId: 'me',
+        id: messageId,
       format: format,
-    });
+      });
     return response.data;
-  } catch (error) {
+    } catch (error) {
     console.error('Error getting email details:', error.response ? JSON.stringify(error.response.data) : error.message);
     throw new Error(`Failed to get email details: ${error.message}`);
   }
@@ -264,7 +264,7 @@ const parseEmailDetails = (gmailMessage) => {
     body = getPart(gmailMessage.payload) || '';
   }
 
-  return {
+    return {
     id: gmailMessage.id,
     threadId: gmailMessage.threadId,
     subject: subjectHeader ? subjectHeader.value : 'N/A',

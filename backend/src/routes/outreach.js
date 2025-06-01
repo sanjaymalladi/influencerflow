@@ -58,8 +58,8 @@ const getUserGmailTokens = async (userId, dbClient) => {
       .from('users')
       .select('gmail_access_token, gmail_refresh_token, gmail_token_expiry')
       .eq('id', userId)
-      .single();
-
+        .single();
+      
     if (error) {
       console.error(`getUserGmailTokens: Error fetching tokens for user ${userId}:`, error.message);
       return null;
@@ -376,16 +376,16 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     const authUserId = req.user.id; // User ID from JWT token
     const supabaseUserId = getSupabaseUserId(authUserId); // Potentially maps to a Supabase user ID if different
     const dbClient = getDbClient(supabaseUserId); // Get Supabase client instance
-
+    
     console.log(`📧 Attempting to send email with ID: ${emailId} for user: ${authUserId}`);
     
     let email = null;
     let isMockEmail = emailId.startsWith('email-') || emailId.startsWith('mock-');
-
+    
     if (isMockEmail) {
       console.log('📧 Detected mock email, retrieving from memory...');
       email = mockEmailsStore.get(emailId);
-      if (!email) {
+    if (!email) {
         console.log(`❌ Mock email ${emailId} not found in memory store`);
         return res.status(404).json({ success: false, message: 'Mock email not found. Please recreate it.' });
       }
@@ -481,14 +481,14 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     }
 
     // --- Update database ---
-    const updateData = {
+      const updateData = {
       status: 'sent',
-      sent_at: new Date().toISOString(),
+        sent_at: new Date().toISOString(),
       provider: sentViaGmail ? 'user_gmail' : (emailResult.provider || 'default_email_service'),
       external_id: sentViaGmail ? emailResult.id : emailResult.messageId, // Gmail's message ID
       email_thread_id: sentViaGmail ? emailResult.threadId : (email.email_thread_id || null), // Store Gmail's thread ID
       // creator_id: creator.id, // Already part of email object, ensure it's correct
-      tracking_data: {
+        tracking_data: {
         ...(email.tracking_data || {}), // Preserve existing tracking data
         recipientEmail: recipientEmail,
         deliveryStatus: 'delivered', // Assuming delivered, actual status might need webhooks
@@ -501,17 +501,17 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     
     let updatedEmailInDb = null;
     if (!isMockEmail && isSupabaseAvailable() && dbClient) {
-      const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
-        .from('outreach_emails')
-        .update(updateData)
-        .eq('id', emailId)
-        .select()
-        .single();
+        const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
+          .from('outreach_emails')
+          .update(updateData)
+          .eq('id', emailId)
+          .select()
+          .single();
 
-      if (updateError) {
-        console.error('Error updating email status in Supabase:', updateError);
+        if (updateError) {
+          console.error('Error updating email status in Supabase:', updateError);
         // Don't let DB update failure hide a successful send. Log and continue.
-      } else {
+        } else {
         updatedEmailInDb = supabaseUpdatedEmail;
         console.log('📧 Email status updated in Supabase.');
       }
@@ -533,8 +533,8 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       email = { ...email, ...updateData };
       mockEmailsStore.set(emailId, email);
       updatedEmailInDb = email;
-      console.log(`📧 Updated mock email in memory store: ${emailId}`);
-    }
+          console.log(`📧 Updated mock email in memory store: ${emailId}`);
+      }
 
     res.json({
       success: true,

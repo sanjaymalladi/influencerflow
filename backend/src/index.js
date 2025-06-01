@@ -12,6 +12,7 @@ const campaignRoutes = require('./routes/campaigns');
 const outreachRoutes = require('./routes/outreach');
 const socialbladeRoutes = require('./routes/socialblade');
 const automationRoutes = require('./routes/automation');
+const replyRoutes = require('./routes/replies');
 
 // Initialize Express app
 const app = express();
@@ -81,6 +82,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/outreach', outreachRoutes);
 app.use('/api/socialblade', socialbladeRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/replies', replyRoutes);
 
 // Setup endpoint for demo data (admin only)
 app.post('/api/setup-demo', async (req, res) => {
