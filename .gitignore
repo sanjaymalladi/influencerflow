@@ -100,4 +100,25 @@ test-results/
 .yarn/
 
 # Generated files
-backend/generate-hash.js 
+backend/generate-hash.js
+
+# Development and test artifacts
+**/test-*
+**/demo-*
+**/setup-*
+**/*-test.js
+**/*-test.ts
+**/*.test.js
+**/*.test.ts
+
+# Data directories (old JSON files)
+data/
+*/data/
+
+# Migration scripts (if recreated)
+*migrate*.js
+*migration*.js
+
+# Local scripts
+local-*.js
+temp-*.js 
