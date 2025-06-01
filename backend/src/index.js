@@ -49,7 +49,7 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'Welcome to InfluencerFlow API',
-    version: '1.0.4',
+    version: '1.0.5',
     endpoints: {
       health: '/health',
       auth: '/api/auth',
@@ -194,4 +194,4 @@ process.on('SIGINT', () => {
     console.log('✅ Process terminated');
     process.exit(0);
   });
-}); 
+});
