@@ -44,6 +44,25 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Logging middleware
 app.use(morgan('combined'));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to InfluencerFlow API',
+    version: '1.0.4',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      creators: '/api/creators', 
+      campaigns: '/api/campaigns',
+      outreach: '/api/outreach',
+      automation: '/api/automation'
+    },
+    docs: 'https://github.com/sanjaymalladi/influencerflow',
+    frontend: 'https://influencerflow.vercel.app'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
@@ -105,11 +124,15 @@ app.use((err, req, res, next) => {
 
 // Start server with better error handling
 const server = app.listen(PORT, () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const apiUrl = isProduction ? 'https://influencerflow.onrender.com' : `http://localhost:${PORT}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://influencerflow.vercel.app';
+  
   console.log(`🚀 InfluencerFlow API Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`🔗 API URL: http://localhost:${PORT}`);
-  console.log(`💚 Health Check: http://localhost:${PORT}/health`);
+  console.log(`🌐 Frontend URL: ${frontendUrl}`);
+  console.log(`🔗 API URL: ${apiUrl}`);
+  console.log(`💚 Health Check: ${apiUrl}/health`);
 });
 
 // Handle server errors
