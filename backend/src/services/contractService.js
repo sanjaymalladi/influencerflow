@@ -1,4 +1,10 @@
-const pd_api = require('pandadoc-node-client');
+let pd_api;
+try {
+  pd_api = require('pandadoc-node-client');
+} catch (error) {
+  console.log('Contract service disabled - pandadoc-node-client not available');
+  pd_api = null;
+}
 const fs = require('fs');
 const path = require('path');
 const { PDFDocument, rgb } = require('pdf-lib');

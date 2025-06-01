@@ -1,4 +1,12 @@
-const { google } = require('googleapis');
+let google;
+try {
+  const googleapis = require('googleapis');
+  google = googleapis.google;
+} catch (error) {
+  console.log('Gmail service disabled - googleapis not available');
+  google = null;
+}
+
 const fs = require('fs');
 const path = require('path');
 
