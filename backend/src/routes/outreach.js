@@ -146,10 +146,33 @@ router.get('/emails', authenticateToken, async (req, res) => {
 // @access  Private (Brand/Agency only)
 router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
+    // If Supabase is not available, create a mock email for demo purposes
     if (!isSupabaseAvailable()) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database temporarily unavailable'
+      console.log('⚠️ Supabase not available, creating mock email...');
+      const { campaignId, creatorId, subject, body } = req.body;
+
+      if (!campaignId || !creatorId || !subject || !body) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide campaignId, creatorId, subject, and body'
+        });
+      }
+
+      // Return a mock email response
+      const mockEmail = {
+        id: 'mock-' + Date.now(),
+        campaign_id: campaignId,
+        creator_id: creatorId,
+        subject,
+        content: body,
+        status: 'draft',
+        created_at: new Date().toISOString()
+      };
+
+      return res.status(201).json({
+        success: true,
+        message: 'Mock email created successfully (Supabase unavailable)',
+        data: mockEmail
       });
     }
 
@@ -201,7 +224,12 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
     console.error('Create email error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error creating email'
+      message: 'Server error creating email',
+      debug: {
+        error: error.message,
+        supabaseAvailable: isSupabaseAvailable(),
+        timestamp: new Date().toISOString()
+      }
     });
   }
 });
@@ -211,7 +239,27 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
 // @access  Private (Brand/Agency only)
 router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
+    // Handle mock emails when Supabase is not available
     if (!isSupabaseAvailable()) {
+      const emailId = req.params.id;
+      
+      if (emailId.startsWith('mock-')) {
+        console.log('⚠️ Supabase not available, simulating email send for mock email...');
+        
+        const mockSentEmail = {
+          id: emailId,
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          message: 'Mock email sent successfully (Supabase unavailable)'
+        };
+
+        return res.json({
+          success: true,
+          message: 'Mock email sent successfully',
+          data: mockSentEmail
+        });
+      }
+      
       return res.status(503).json({
         success: false,
         message: 'Database temporarily unavailable'
