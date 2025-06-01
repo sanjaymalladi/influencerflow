@@ -86,7 +86,11 @@ router.post('/', authenticateToken, async (req, res) => {
     
     // Use admin client for demo user to bypass RLS
     const isDemoUser = supabaseUserId === '550e8400-e29b-41d4-a716-446655440000';
-    const dbClient = isDemoUser ? supabaseAdmin : supabase;
+    const dbClient = isDemoUser && supabaseAdmin ? supabaseAdmin : supabase;
+
+    if (isDemoUser && !supabaseAdmin) {
+      console.warn('⚠️ Demo user detected but no admin client available. Using regular client.');
+    }
 
     // Check if creator already exists for this user
     const { data: existingCreators, error: findError } = await dbClient
@@ -163,10 +167,42 @@ router.post('/', authenticateToken, async (req, res) => {
       console.warn('Analytics logging failed:', analyticsError.message);
     }
 
+    // Transform data from Supabase format to frontend format
+    const transformedCreator = {
+      id: newCreator.id,
+      channelName: newCreator.channel_name,
+      profileImageUrl: newCreator.avatar_url,
+      youtubeChannelUrl: newCreator.youtube_channel_url,
+      instagramUrl: newCreator.instagram_url,
+      tiktokUrl: newCreator.tiktok_url,
+      bio: newCreator.stats?.bio || '',
+      subscriberCount: newCreator.subscriber_count,
+      followerCount: newCreator.follower_count,
+      viewCount: newCreator.stats?.viewCount,
+      videoCount: newCreator.stats?.videoCount,
+      matchPercentage: newCreator.stats?.matchPercentage,
+      categories: newCreator.categories || [],
+      typicalViews: newCreator.stats?.typicalViews,
+      engagementRate: newCreator.stats?.engagementRate,
+      recentGrowth: newCreator.stats?.recentGrowth,
+      dataSource: newCreator.stats?.dataSource || 'Manual',
+      geminiBio: newCreator.stats?.geminiBio,
+      popularVideos: newCreator.stats?.popularVideos || [],
+      socialPlatforms: newCreator.social_stats?.socialPlatforms || ['YouTube'],
+      location: newCreator.social_stats?.location,
+      contactEmail: newCreator.contact_email,
+      notes: newCreator.notes,
+      tags: newCreator.tags || [],
+      status: newCreator.status,
+      createdAt: newCreator.created_at,
+      updatedAt: newCreator.updated_at,
+      addedBy: newCreator.user_id
+    };
+
     res.status(201).json({
       success: true,
       message: 'Creator saved successfully',
-      data: { creator: newCreator }
+      data: { creator: transformedCreator }
     });
 
   } catch (error) {
@@ -188,7 +224,7 @@ router.get('/', authenticateToken, async (req, res) => {
     
     // Use admin client for demo user to bypass RLS
     const isDemoUser = supabaseUserId === '550e8400-e29b-41d4-a716-446655440000';
-    const dbClient = isDemoUser ? supabaseAdmin : supabase;
+    const dbClient = isDemoUser && supabaseAdmin ? supabaseAdmin : supabase;
     
     let query = dbClient
       .from('creators')
@@ -235,10 +271,42 @@ router.get('/', authenticateToken, async (req, res) => {
       throw new Error('Error fetching creators: ' + error.message);
     }
 
+    // Transform data from Supabase format to frontend format
+    const transformedCreators = (creators || []).map(creator => ({
+      id: creator.id,
+      channelName: creator.channel_name,
+      profileImageUrl: creator.avatar_url,
+      youtubeChannelUrl: creator.youtube_channel_url,
+      instagramUrl: creator.instagram_url,
+      tiktokUrl: creator.tiktok_url,
+      bio: creator.stats?.bio || '',
+      subscriberCount: creator.subscriber_count,
+      followerCount: creator.follower_count,
+      viewCount: creator.stats?.viewCount,
+      videoCount: creator.stats?.videoCount,
+      matchPercentage: creator.stats?.matchPercentage,
+      categories: creator.categories || [],
+      typicalViews: creator.stats?.typicalViews,
+      engagementRate: creator.stats?.engagementRate,
+      recentGrowth: creator.stats?.recentGrowth,
+      dataSource: creator.stats?.dataSource || 'Manual',
+      geminiBio: creator.stats?.geminiBio,
+      popularVideos: creator.stats?.popularVideos || [],
+      socialPlatforms: creator.social_stats?.socialPlatforms || ['YouTube'],
+      location: creator.social_stats?.location,
+      contactEmail: creator.contact_email,
+      notes: creator.notes,
+      tags: creator.tags || [],
+      status: creator.status,
+      createdAt: creator.created_at,
+      updatedAt: creator.updated_at,
+      addedBy: creator.user_id
+    }));
+
     res.json({
       success: true,
       data: {
-        creators: creators || [],
+        creators: transformedCreators,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(count / limit),
@@ -282,9 +350,41 @@ router.get('/:id', authenticateToken, async (req, res) => {
       throw new Error('Error fetching creator: ' + error.message);
     }
 
+    // Transform data from Supabase format to frontend format
+    const transformedCreator = {
+      id: creator.id,
+      channelName: creator.channel_name,
+      profileImageUrl: creator.avatar_url,
+      youtubeChannelUrl: creator.youtube_channel_url,
+      instagramUrl: creator.instagram_url,
+      tiktokUrl: creator.tiktok_url,
+      bio: creator.stats?.bio || '',
+      subscriberCount: creator.subscriber_count,
+      followerCount: creator.follower_count,
+      viewCount: creator.stats?.viewCount,
+      videoCount: creator.stats?.videoCount,
+      matchPercentage: creator.stats?.matchPercentage,
+      categories: creator.categories || [],
+      typicalViews: creator.stats?.typicalViews,
+      engagementRate: creator.stats?.engagementRate,
+      recentGrowth: creator.stats?.recentGrowth,
+      dataSource: creator.stats?.dataSource || 'Manual',
+      geminiBio: creator.stats?.geminiBio,
+      popularVideos: creator.stats?.popularVideos || [],
+      socialPlatforms: creator.social_stats?.socialPlatforms || ['YouTube'],
+      location: creator.social_stats?.location,
+      contactEmail: creator.contact_email,
+      notes: creator.notes,
+      tags: creator.tags || [],
+      status: creator.status,
+      createdAt: creator.created_at,
+      updatedAt: creator.updated_at,
+      addedBy: creator.user_id
+    };
+
     res.json({
       success: true,
-      data: { creator }
+      data: { creator: transformedCreator }
     });
 
   } catch (error) {
@@ -347,10 +447,42 @@ router.put('/:id', authenticateToken, async (req, res) => {
       throw new Error('Error updating creator: ' + error.message);
     }
 
+    // Transform data from Supabase format to frontend format
+    const transformedCreator = {
+      id: updatedCreator.id,
+      channelName: updatedCreator.channel_name,
+      profileImageUrl: updatedCreator.avatar_url,
+      youtubeChannelUrl: updatedCreator.youtube_channel_url,
+      instagramUrl: updatedCreator.instagram_url,
+      tiktokUrl: updatedCreator.tiktok_url,
+      bio: updatedCreator.stats?.bio || '',
+      subscriberCount: updatedCreator.subscriber_count,
+      followerCount: updatedCreator.follower_count,
+      viewCount: updatedCreator.stats?.viewCount,
+      videoCount: updatedCreator.stats?.videoCount,
+      matchPercentage: updatedCreator.stats?.matchPercentage,
+      categories: updatedCreator.categories || [],
+      typicalViews: updatedCreator.stats?.typicalViews,
+      engagementRate: updatedCreator.stats?.engagementRate,
+      recentGrowth: updatedCreator.stats?.recentGrowth,
+      dataSource: updatedCreator.stats?.dataSource || 'Manual',
+      geminiBio: updatedCreator.stats?.geminiBio,
+      popularVideos: updatedCreator.stats?.popularVideos || [],
+      socialPlatforms: updatedCreator.social_stats?.socialPlatforms || ['YouTube'],
+      location: updatedCreator.social_stats?.location,
+      contactEmail: updatedCreator.contact_email,
+      notes: updatedCreator.notes,
+      tags: updatedCreator.tags || [],
+      status: updatedCreator.status,
+      createdAt: updatedCreator.created_at,
+      updatedAt: updatedCreator.updated_at,
+      addedBy: updatedCreator.user_id
+    };
+
     res.json({
       success: true,
       message: 'Creator updated successfully',
-      data: { creator: updatedCreator }
+      data: { creator: transformedCreator }
     });
 
   } catch (error) {
@@ -434,10 +566,42 @@ router.post('/bulk', authenticateToken, async (req, res) => {
       throw new Error('Error saving creators: ' + error.message);
     }
 
+    // Transform data from Supabase format to frontend format
+    const transformedCreators = newCreators.map(creator => ({
+      id: creator.id,
+      channelName: creator.channel_name,
+      profileImageUrl: creator.avatar_url,
+      youtubeChannelUrl: creator.youtube_channel_url,
+      instagramUrl: creator.instagram_url,
+      tiktokUrl: creator.tiktok_url,
+      bio: creator.stats?.bio || '',
+      subscriberCount: creator.subscriber_count,
+      followerCount: creator.follower_count,
+      viewCount: creator.stats?.viewCount,
+      videoCount: creator.stats?.videoCount,
+      matchPercentage: creator.stats?.matchPercentage,
+      categories: creator.categories || [],
+      typicalViews: creator.stats?.typicalViews,
+      engagementRate: creator.stats?.engagementRate,
+      recentGrowth: creator.stats?.recentGrowth,
+      dataSource: creator.stats?.dataSource || 'Manual',
+      geminiBio: creator.stats?.geminiBio,
+      popularVideos: creator.stats?.popularVideos || [],
+      socialPlatforms: creator.social_stats?.socialPlatforms || ['YouTube'],
+      location: creator.social_stats?.location,
+      contactEmail: creator.contact_email,
+      notes: creator.notes,
+      tags: creator.tags || [],
+      status: creator.status,
+      createdAt: creator.created_at,
+      updatedAt: creator.updated_at,
+      addedBy: creator.user_id
+    }));
+
     res.json({
       success: true,
       message: `${newCreators.length} creators saved successfully`,
-      data: { creators: newCreators }
+      data: { creators: transformedCreators }
     });
 
   } catch (error) {

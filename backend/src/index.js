@@ -97,6 +97,21 @@ app.post('/api/setup-demo', async (req, res) => {
   }
 });
 
+// Fix Supabase sync endpoint (admin only)
+app.post('/api/fix-supabase-sync', async (req, res) => {
+  try {
+    const { fixSupabaseSyncAndAddUser } = require('../fix-supabase-sync');
+    const result = await fixSupabaseSyncAndAddUser();
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fixing Supabase sync: ' + error.message
+    });
+  }
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
