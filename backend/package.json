@@ -4,8 +4,9 @@
   "description": "Backend API for InfluencerFlow - Creator Discovery and Campaign Management Platform",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node scripts/seed-mock-negotiation.js && node src/index.js",
     "dev": "nodemon src/index.js",
+    "seed": "node scripts/seed-mock-negotiation.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

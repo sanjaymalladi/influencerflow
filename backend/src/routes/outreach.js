@@ -79,7 +79,7 @@ const getUserGmailTokens = async (userId, dbClient) => {
   } catch (err) {
     console.error(`getUserGmailTokens: Exception for user ${userId}:`, err.message);
     return null;
-  }
+    }
 };
 
 // Placeholder function to update user's Gmail tokens in Supabase
@@ -105,7 +105,7 @@ const updateUserGmailTokensInDb = async (userId, tokens, dbClient) => {
       .from('users')
       .update(updatePayload)
       .eq('id', userId);
-
+      
     if (error) {
       console.error(`updateUserGmailTokensInDb: Failed to update tokens for user ${userId}:`, error.message);
     } else {
@@ -411,7 +411,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     let creator = isMockEmail ? email._creator : (email.creators || await findCreatorById(email.creator_id, supabaseUserId));
     if (!creator) {
       return res.status(404).json({ success: false, message: 'Creator not found for this email.' });
-    }
+      }
     console.log(`✅ Creator identified: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
 
     const recipientEmail = creator.contact_email || `${(creator.channelName || creator.channel_name || 'default').toLowerCase().replace(/\\s+/g, '')}@example.com`;
@@ -496,9 +496,9 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         threadId: sentViaGmail ? emailResult.threadId : (email.email_thread_id || null),
         sentAt: new Date().toISOString(),
         sentMethod: sentViaGmail ? 'user_gmail' : 'legacy_service'
-      }
-    };
-    
+        }
+      };
+
     let updatedEmailInDb = null;
     if (!isMockEmail && isSupabaseAvailable() && dbClient) {
         const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
