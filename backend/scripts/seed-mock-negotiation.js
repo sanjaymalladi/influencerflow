@@ -3,11 +3,14 @@ const { v4: uuidv4 } = require('uuid');
 
 // --- Configuration & Mock Data ---
 const MOCK_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
-const MOCK_CREATOR_ID = '01cc9cc7-143e-47d2-bbc6-1dedbc20187c'; // Sanjay Malladi
-const MOCK_CAMPAIGN_ID = 'campaign-3'; // Meta Ray Ban India Launch
-const MOCK_OUTREACH_EMAIL_ID = 'email-1748805065898'; // From user logs
-const MOCK_OUTREACH_EMAIL_EXTERNAL_ID = '1972ce7a15fd1044'; // From user logs
-const MOCK_USER_EMAIL = 'user@example.com'; // Replace with actual user email if needed for display
+// IMPORTANT: Replace 'YOUR_ACTUAL_CAMPAIGN_UUID_HERE' with a real UUID from your 'campaigns' table
+const MOCK_CAMPAIGN_ID = 'YOUR_ACTUAL_CAMPAIGN_UUID_HERE'; 
+const MOCK_CREATOR_ID = '01cc9cc7-143e-47d2-bbc6-1dedbc20187c'; // Ensure this UUID exists in your 'creators' table
+
+const MOCK_OUTREACH_EMAIL_ID = uuidv4(); // Generate a new UUID for the outreach email
+const MOCK_OUTREACH_EMAIL_EXTERNAL_ID = 'mock_external_' + uuidv4().slice(0,12); // Gmail message ID can be a string
+
+const MOCK_USER_EMAIL = 'user@example.com';
 const MOCK_CREATOR_EMAIL = 'malladisanjay29@gmail.com';
 
 const mockThreadId = `mock_thread_sanjay_negotiation_${uuidv4().slice(0,8)}`;
@@ -34,6 +37,16 @@ Demo Company`;
 
 async function seedMockNegotiation() {
   console.log('--- Starting Mock Negotiation Seeding Script ---');
+  console.log(`USING Campaign ID: ${MOCK_CAMPAIGN_ID}`);
+  console.log(`USING Creator ID: ${MOCK_CREATOR_ID}`);
+  console.log(`Generated Outreach Email ID: ${MOCK_OUTREACH_EMAIL_ID}`);
+
+  if (MOCK_CAMPAIGN_ID === 'YOUR_ACTUAL_CAMPAIGN_UUID_HERE') {
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    console.error('ERROR: Please replace "YOUR_ACTUAL_CAMPAIGN_UUID_HERE" in the seed script with a real campaign UUID from your database.');
+    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    return; // Stop the script
+  }
 
   try {
     // 1. Ensure/Update Initial Outreach Email (from user's perspective)
