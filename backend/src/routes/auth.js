@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const gmailService = require('../services/gmailService');
 
@@ -9,7 +10,7 @@ const router = express.Router();
 // Mock user database (replace with real database later)
 let users = [
   {
-    id: '1',
+    id: '550e8400-e29b-41d4-a716-446655440000',
     email: 'demo@influencerflow.com',
     password: '$2a$12$unqrPixbdVQ4H5AkHgjl6u3X9Sg11/WbJi5CnmvgiNYcBEHa96Dnm', // "password123"
     name: 'Demo User',
@@ -74,7 +75,7 @@ router.post('/register', async (req, res) => {
 
     // Create new user
     const newUser = {
-      id: (users.length + 1).toString(),
+      id: uuidv4(),
       email,
       password: hashedPassword,
       name,
