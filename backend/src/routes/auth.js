@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const gmailService = require('../services/gmailService');
 const { createOAuth2Client } = require('../services/gmailService');
-const { supabase } = require('../config/supabaseClient');
+const { supabase } = require('../config/supabase');
 
 const router = express.Router();
 
