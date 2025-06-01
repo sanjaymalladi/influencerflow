@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { supabase } = require('./src/config/supabase');
+const { supabase, supabaseAdmin } = require('./src/config/supabase');
 const path = require('path');
 const fs = require('fs');
 
@@ -29,15 +29,21 @@ const loadData = (filePath) => {
 const migrateUsers = async () => {
   console.log('🔄 Migrating users...');
   
+  if (!supabaseAdmin) {
+    console.log('⚠️ No admin client available. Using regular client (may fail due to RLS)');
+  }
+  
+  const client = supabaseAdmin || supabase;
+  
   // Create a demo user if not exists
-  const { data: existingUser } = await supabase
+  const { data: existingUser } = await client
     .from('users')
     .select('id')
     .eq('email', 'demo@influencerflow.com')
     .single();
 
   if (!existingUser) {
-    const { data: newUser, error } = await supabase
+    const { data: newUser, error } = await client
       .from('users')
       .insert([{
         id: '550e8400-e29b-41d4-a716-446655440000',
