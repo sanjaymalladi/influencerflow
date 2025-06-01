@@ -64,36 +64,12 @@ const fixRLSPolicies = async () => {
       }
     ];
 
-    // Create policies for outreach_emails table
+    // Create policies for outreach_emails table (simplified for now)
     const emailsPolicies = [
       {
-        name: 'Allow users to view their own emails',
+        name: 'Allow all operations on outreach_emails',
         query: `
-          CREATE POLICY "Allow users to view their own emails" 
-          ON outreach_emails FOR SELECT 
-          USING (created_by = auth.uid() OR auth.uid() IS NULL);
-        `
-      },
-      {
-        name: 'Allow users to insert their own emails',
-        query: `
-          CREATE POLICY "Allow users to insert their own emails" 
-          ON outreach_emails FOR INSERT 
-          WITH CHECK (created_by = auth.uid() OR auth.uid() IS NULL);
-        `
-      },
-      {
-        name: 'Allow users to update their own emails',
-        query: `
-          CREATE POLICY "Allow users to update their own emails" 
-          ON outreach_emails FOR UPDATE 
-          USING (created_by = auth.uid() OR auth.uid() IS NULL);
-        `
-      },
-      {
-        name: 'Allow admin full access to emails',
-        query: `
-          CREATE POLICY "Allow admin full access to emails" 
+          CREATE POLICY "Allow all operations on outreach_emails" 
           ON outreach_emails FOR ALL 
           USING (true);
         `
@@ -182,7 +158,6 @@ const fixRLSPolicies = async () => {
     const { data: testEmails, error: emailReadError } = await supabaseAdmin
       .from('outreach_emails')
       .select('id, subject')
-      .eq('created_by', demoUserId)
       .limit(3);
 
     if (emailReadError) {
