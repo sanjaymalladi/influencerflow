@@ -24,7 +24,8 @@ import {
   ExternalLink,
   Edit3,
   Save,
-  Plus
+  Plus,
+  RefreshCw
 } from "lucide-react";
 import { toast } from 'sonner';
 
@@ -61,17 +62,21 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, onStatusUpdate, onEmailCli
 
   const handleNotesUpdate = async () => {
     try {
-      await outreachAPI.updateEmailStatus(email.id, { notes });
+      console.log('📝 Updating email notes:', { emailId: email.id, notes });
+      const updatedEmail = await outreachAPI.updateEmailStatus(email.id, { notes });
       setIsEditing(false);
       toast.success('Notes updated successfully');
-      onStatusUpdate({ ...email, notes });
-    } catch (error) {
-      toast.error('Failed to update notes');
+      onStatusUpdate(updatedEmail);
+    } catch (error: any) {
+      console.error('❌ Failed to update notes:', error);
+      toast.error('Failed to update notes: ' + (error.message || 'Unknown error'));
     }
   };
 
   const handleStatusChange = async (newStatus: string) => {
     try {
+      console.log('🔄 Updating email status:', { emailId: email.id, newStatus });
+      
       const statusData: any = { status: newStatus };
       if (newStatus === 'opened' && !email.openedAt) {
         statusData.openedAt = new Date().toISOString();
@@ -80,11 +85,14 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, onStatusUpdate, onEmailCli
         statusData.repliedAt = new Date().toISOString();
       }
       
-      await outreachAPI.updateEmailStatus(email.id, statusData);
-      toast.success('Status updated successfully');
-      onStatusUpdate({ ...email, ...statusData });
-    } catch (error) {
-      toast.error('Failed to update status');
+      const updatedEmail = await outreachAPI.updateEmailStatus(email.id, statusData);
+      console.log('✅ Email status updated successfully:', updatedEmail);
+      
+      toast.success(`Status updated to: ${newStatus}`);
+      onStatusUpdate(updatedEmail);
+    } catch (error: any) {
+      console.error('❌ Failed to update status:', error);
+      toast.error('Failed to update status: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -443,12 +451,19 @@ const EmailPipeline: React.FC = () => {
   const [selectedEmail, setSelectedEmail] = useState<OutreachEmail | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const loadPipelineData = async () => {
+  const loadPipelineData = async (showToast = false) => {
     try {
       setIsLoading(true);
+      if (showToast) {
+        console.log('🔄 Refreshing pipeline data...');
+      }
       const data = await outreachAPI.getPipeline();
       setPipelineData(data);
+      if (showToast) {
+        toast.success('Pipeline data refreshed!');
+      }
     } catch (error) {
+      console.error('❌ Failed to load pipeline data:', error);
       toast.error('Failed to load pipeline data');
     } finally {
       setIsLoading(false);
@@ -519,7 +534,7 @@ const EmailPipeline: React.FC = () => {
         <AlertTriangle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-900 mb-2">Failed to load pipeline</h3>
         <p className="text-gray-600 mb-4">Unable to load pipeline data</p>
-        <Button onClick={loadPipelineData}>
+        <Button onClick={() => loadPipelineData()}>
           Try Again
         </Button>
       </div>
@@ -536,6 +551,23 @@ const EmailPipeline: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Email Pipeline</h2>
+          <p className="text-gray-600">Track email status through each stage of the outreach process</p>
+        </div>
+        <Button 
+          onClick={() => loadPipelineData(true)}
+          disabled={isLoading}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          {isLoading ? 'Refreshing...' : 'Refresh Pipeline'}
+        </Button>
+      </div>
+
       {/* Metrics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>

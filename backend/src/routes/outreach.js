@@ -344,9 +344,9 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
           emailData = {
             campaign_id: campaign.id,
             creator_id: creator.id,
-            subject,
+      subject,
             content: body,
-            status: 'draft',
+      status: 'draft',
             created_at: new Date().toISOString()
           };
 
@@ -359,9 +359,9 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
           if (!error && newEmail) {
             console.log(`✅ Email stored in Supabase with ID: ${newEmail.id}`);
             return res.status(201).json({
-              success: true,
-              message: 'Email created successfully',
-              data: newEmail
+      success: true,
+      message: 'Email created successfully',
+      data: newEmail
             });
           }
         }
@@ -418,7 +418,7 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
 // @desc    Send outreach email
 // @access  Private (Brand/Agency only)
 router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
-    try {
+  try {
     const emailId = req.params.id;
     const supabaseUserId = getSupabaseUserId(req.user.id);
     
@@ -432,12 +432,12 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       
       // Retrieve the stored mock email
       email = mockEmailsStore.get(emailId);
-      
-      if (!email) {
+
+    if (!email) {
         console.log(`❌ Mock email ${emailId} not found in memory store`);
         console.log(`📧 Available mock emails: ${Array.from(mockEmailsStore.keys()).join(', ')}`);
-        return res.status(404).json({
-          success: false,
+      return res.status(404).json({
+        success: false,
           message: 'Mock email not found in memory. Please recreate the email.'
         });
       }
@@ -451,7 +451,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       // Try to get real email from Supabase
       if (!isSupabaseAvailable()) {
         return res.status(503).json({
-          success: false,
+        success: false,
           message: 'Database temporarily unavailable'
         });
       }
@@ -493,11 +493,11 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       // Use the enhanced creator lookup function for real emails
       creator = await findCreatorById(email.creator_id, supabaseUserId);
       
-      if (!creator) {
-        return res.status(404).json({
-          success: false,
+    if (!creator) {
+      return res.status(404).json({
+        success: false,
           message: 'Creator not found for this email'
-        });
+      });
       }
       
       console.log(`✅ Creator found: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
@@ -553,7 +553,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
 ---
 This email was sent via InfluencerFlow
 Reference ID: ${emailId.toUpperCase()}`;
-
+      
       const emailResult = await emailService.sendEmail({
         to: recipientEmail,
         subject: email.subject,
@@ -566,15 +566,15 @@ Reference ID: ${emailId.toUpperCase()}`;
 
             // Update email status
       const updateData = {
-        status: 'sent',
+      status: 'sent',
         sent_at: new Date().toISOString(),
         external_id: emailResult.messageId,
         provider: emailResult.provider,
         creator_id: creator.id,
         tracking_data: {
-          recipientEmail: recipientEmail,
-          deliveryStatus: 'delivered',
-          emailId: emailResult.emailId,
+        recipientEmail: recipientEmail,
+        deliveryStatus: 'delivered',
+        emailId: emailResult.emailId,
           messageId: emailResult.messageId,
           creatorName: creator.channelName || creator.channel_name,
           sentAt: new Date().toISOString()
@@ -611,12 +611,12 @@ Reference ID: ${emailId.toUpperCase()}`;
       }
     
       console.log(`✅ Email sent successfully to ${recipientEmail}`);
-    
-      res.json({
-        success: true,
-        message: 'Email sent successfully',
-        data: updatedEmail
-      });
+
+    res.json({
+      success: true,
+      message: 'Email sent successfully',
+      data: updatedEmail
+    });
 
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
@@ -627,7 +627,7 @@ Reference ID: ${emailId.toUpperCase()}`;
         bounce_reason: emailError.message,
         tracking_data: {
           deliveryStatus: 'failed',
-          errorMessage: emailError.message,
+        errorMessage: emailError.message,
           failedAt: new Date().toISOString()
         }
       };
@@ -692,7 +692,7 @@ router.get('/pipeline', authenticateToken, async (req, res) => {
   try {
     if (!isSupabaseAvailable()) {
       return res.json({
-        success: true,
+      success: true,
         data: {
           pipeline: {
             draft: [],
@@ -721,7 +721,7 @@ router.get('/pipeline', authenticateToken, async (req, res) => {
 
     if (!dbClient) {
       return res.json({
-        success: true,
+      success: true,
         data: {
           pipeline: { draft: [], sent: [], opened: [], replied: [], failed: [] },
           metrics: { totalEmails: 0, draftCount: 0, sentCount: 0, openedCount: 0, repliedCount: 0, failedCount: 0, openRate: '0', replyRate: '0', deliveryRate: '0' }
@@ -798,6 +798,99 @@ router.get('/pending-approvals', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching pending approvals'
+    });
+  }
+});
+
+// @route   PUT /api/outreach/emails/:id/status
+// @desc    Update email status (for tracking)
+// @access  Private
+router.put('/emails/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const emailId = req.params.id;
+    const { status, openedAt, repliedAt, notes } = req.body;
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
+    console.log('🔧 Updating email status:', { emailId, status, openedAt, repliedAt, notes });
+
+    let email = null;
+    let updatedEmail = null;
+
+    // Check if this is a mock email
+    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+      email = mockEmailsStore.get(emailId);
+      if (!email) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mock email not found'
+        });
+      }
+
+      // Update mock email
+      const updateData = { ...email };
+      if (status) updateData.status = status;
+      if (openedAt) updateData.openedAt = openedAt;
+      if (repliedAt) updateData.repliedAt = repliedAt;
+      if (notes) updateData.notes = notes;
+      updateData.updatedAt = new Date().toISOString();
+
+      mockEmailsStore.set(emailId, updateData);
+      updatedEmail = updateData;
+      console.log('✅ Mock email status updated:', updateData);
+    } else {
+      // Update real email in Supabase
+      if (!isSupabaseAvailable()) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database temporarily unavailable'
+        });
+      }
+
+      const dbClient = getDbClient(supabaseUserId);
+      if (!dbClient) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database client not available'
+        });
+      }
+
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (openedAt) updateData.opened_at = openedAt;
+      if (repliedAt) updateData.replied_at = repliedAt;
+      if (notes) updateData.notes = notes;
+      updateData.updated_at = new Date().toISOString();
+
+      const { data: supabaseUpdatedEmail, error } = await dbClient
+        .from('outreach_emails')
+        .update(updateData)
+        .eq('id', emailId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating email status in Supabase:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to update email status: ' + error.message
+        });
+      }
+
+      updatedEmail = supabaseUpdatedEmail;
+      console.log('✅ Supabase email status updated:', updatedEmail);
+    }
+
+    res.json({
+      success: true,
+      message: 'Email status updated successfully',
+      data: updatedEmail
+    });
+
+  } catch (error) {
+    console.error('Update email status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating email status'
     });
   }
 });
@@ -925,7 +1018,7 @@ router.get('/campaigns', authenticateToken, async (req, res) => {
           allCampaigns = [...supabaseCampaigns];
           console.log(`✅ Loaded ${supabaseCampaigns.length} campaigns from Supabase`);
         }
-      } catch (error) {
+  } catch (error) {
         console.log('⚠️ Supabase campaigns fetch failed:', error.message);
       }
     }
@@ -939,7 +1032,7 @@ router.get('/campaigns', authenticateToken, async (req, res) => {
       allCampaigns = [...allCampaigns, ...newLocalCampaigns];
       console.log(`✅ Added ${newLocalCampaigns.length} campaigns from local JSON`);
     }
-
+    
     res.json({
       success: true,
       data: { 
@@ -973,7 +1066,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
   try {
     if (!isSupabaseAvailable()) {
       return res.json({
-        success: true,
+      success: true,
         data: {
           overview: {
             totalEmails: 0,
@@ -996,7 +1089,7 @@ router.get('/analytics', authenticateToken, async (req, res) => {
 
     if (!dbClient) {
       return res.json({
-        success: true,
+      success: true,
         data: {
           overview: { totalEmails: 0, sentEmails: 0, openedEmails: 0, repliedEmails: 0, failedEmails: 0, openRate: 0, replyRate: 0, deliveryRate: 0 },
           campaignPerformance: [],
@@ -1043,8 +1136,8 @@ router.get('/analytics', authenticateToken, async (req, res) => {
       timeline: [] // Can be extended later
     };
 
-    res.json({
-      success: true,
+      res.json({
+        success: true,
       data: analytics
     });
 

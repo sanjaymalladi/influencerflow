@@ -7,6 +7,7 @@ import Navigation from "@/components/Navigation";
 import EmailPipeline from "@/components/EmailPipeline";
 import CRMDashboard from "@/components/CRMDashboard";
 import PendingApprovals from "@/components/PendingApprovals";
+import EmailDebugPanel from "@/components/EmailDebugPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -341,9 +342,13 @@ const Outreach = () => {
     template: ''
   });
 
-  const loadData = async () => {
+  const loadData = async (showToast = false) => {
     try {
       setIsLoading(true);
+      
+      if (showToast) {
+        console.log('🔄 Refreshing outreach dashboard data...');
+      }
       
       // Ensure we're authenticated first
       if (!isAuthenticated) {
@@ -360,9 +365,11 @@ const Outreach = () => {
         outreachAPI.getTemplates()
       ]);
       
-      console.log('Loaded campaigns:', campaignsData);
-      console.log('Campaigns array:', campaignsData.campaigns);
-      console.log('Auth token:', localStorage.getItem('authToken'));
+      console.log('📊 Loaded outreach data:', {
+        stats: statsData,
+        emailsCount: emailsData.emails.length,
+        campaignsCount: campaignsData.campaigns?.length || 0
+      });
       
       setStats(statsData);
       setEmails(emailsData.emails);
@@ -371,9 +378,9 @@ const Outreach = () => {
       // Use real campaigns from backend or fallback
       if (campaignsData.campaigns && campaignsData.campaigns.length > 0) {
         setCampaigns(campaignsData.campaigns);
-        console.log('Using real campaigns from backend:', campaignsData.campaigns);
+        console.log('✅ Using real campaigns from backend:', campaignsData.campaigns.length);
       } else {
-        console.warn('No campaigns found, using fallback data');
+        console.warn('⚠️ No campaigns found, using fallback data');
         setCampaigns([
           {
             id: 'demo-campaign-1',
@@ -393,10 +400,19 @@ const Outreach = () => {
           }
         ]);
       }
+      
+      if (showToast) {
+        toast.success('✅ Dashboard data refreshed successfully!');
+      }
     } catch (error) {
-      console.error('Failed to load outreach data:', error);
+      console.error('❌ Failed to load outreach data:', error);
       console.error('Error details:', error.response?.data || error.message);
-      toast.error('Failed to load outreach data');
+      
+      if (showToast) {
+        toast.error('Failed to refresh data: ' + (error.message || 'Unknown error'));
+      } else {
+        toast.error('Failed to load outreach data');
+      }
       
       // Use better fallback campaigns that match backend data
       setCampaigns([
@@ -594,7 +610,9 @@ The AI will automatically include all campaign information and create compelling
       setSelectedCreators([]);
       setBulkFormData({ campaignId: '', subject: '', body: '', template: '' });
       setGeneratedEmails([]);
-      loadData();
+      
+      // Force refresh dashboard data
+      await loadData(true);
     } catch (error: any) {
       console.error('Failed to send emails:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to send emails';
@@ -614,11 +632,20 @@ The AI will automatically include all campaign information and create compelling
 
   const handleSendEmail = async (emailId: string) => {
     try {
-      await outreachAPI.sendEmail(emailId);
-      toast.success('Email sent successfully!');
-      loadData();
+      console.log('📧 Sending email from Outreach dashboard:', emailId);
+      
+      const updatedEmail = await outreachAPI.sendEmail(emailId);
+      
+      console.log('✅ Email sent successfully from dashboard:', updatedEmail);
+      
+      toast.success('Email sent successfully!', {
+        description: `Email status updated to: ${updatedEmail.status}`
+      });
+      
+      // Force refresh dashboard data
+      await loadData(true);
     } catch (error: any) {
-      console.error('Failed to send email:', error);
+      console.error('❌ Failed to send email from dashboard:', error);
       toast.error(error.response?.data?.error || 'Failed to send email');
     }
   };
@@ -950,11 +977,12 @@ The AI will automatically include all campaign information and create compelling
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="outreach" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
             <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
             <TabsTrigger value="crm">CRM</TabsTrigger>
             <TabsTrigger value="ai-approvals">AI Approvals</TabsTrigger>
+            <TabsTrigger value="debug">Debug</TabsTrigger>
           </TabsList>
 
           <TabsContent value="outreach" className="space-y-6">
@@ -1079,6 +1107,10 @@ The AI will automatically include all campaign information and create compelling
 
           <TabsContent value="ai-approvals" className="space-y-6">
             <PendingApprovals onUpdate={loadData} />
+          </TabsContent>
+
+          <TabsContent value="debug" className="space-y-6">
+            <EmailDebugPanel />
           </TabsContent>
         </Tabs>
 
