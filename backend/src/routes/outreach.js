@@ -67,7 +67,7 @@ const findCreatorById = async (creatorId, userId) => {
         .single();
       
       if (!error && creator) {
-        console.log(`✅ Found creator in Supabase: ${creator.channel_name}`);
+        console.log(`✅ Found creator in Supabase: ${creator.channel_name || creator.channelName}`);
         return creator;
       }
     } catch (error) {
@@ -86,21 +86,22 @@ const findCreatorById = async (creatorId, userId) => {
         word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' ');
       
-      creator = localCreators.find(c => 
-        c.channel_name.toLowerCase() === searchName.toLowerCase() ||
-        c.channel_name.toLowerCase().replace(/\s+/g, '-') === creatorId.toLowerCase()
-      );
+      creator = localCreators.find(c => {
+        const creatorName = c.channel_name || c.channelName || '';
+        return creatorName.toLowerCase() === searchName.toLowerCase() ||
+               creatorName.toLowerCase().replace(/\s+/g, '-') === creatorId.toLowerCase();
+      });
     }
     
     if (creator) {
-      console.log(`✅ Found creator in local JSON: ${creator.channel_name}`);
+      console.log(`✅ Found creator in local JSON: ${creator.channel_name || creator.channelName}`);
       return creator;
     }
   }
   
   // Final fallback - return first available creator
   if (localCreators.length > 0) {
-    console.log(`🚨 Using fallback creator: ${localCreators[0].channel_name}`);
+    console.log(`🚨 Using fallback creator: ${localCreators[0].channel_name || localCreators[0].channelName}`);
     return localCreators[0];
   }
   
@@ -394,57 +395,67 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
 // @desc    Send outreach email
 // @access  Private (Brand/Agency only)
 router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
-  try {
-    // Handle mock emails when Supabase is not available
-    if (!isSupabaseAvailable()) {
-      const emailId = req.params.id;
+    try {
+    const emailId = req.params.id;
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    
+    console.log(`📧 Attempting to send email with ID: ${emailId}`);
+    
+    let email = null;
+    
+    // Check if this is a mock email (created with local data)
+    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+      console.log('📧 Detected mock email, simulating send with local data...');
       
-      if (emailId.startsWith('mock-')) {
-        console.log('⚠️ Supabase not available, simulating email send for mock email...');
-        
-        const mockSentEmail = {
-          id: emailId,
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          message: 'Mock email sent successfully (Supabase unavailable)'
-        };
+      // Since mock emails aren't stored, we need to recreate the email data
+      // Extract timestamp from ID to find approximate creation data
+      const emailCreatedText = `Mock email created for sending`;
+      
+      // For mock emails, we'll create a simulated email object
+      email = {
+        id: emailId,
+        subject: `Collaboration Opportunity`,
+        content: `Hi there! We'd love to collaborate with you on our upcoming campaign.`,
+        status: 'draft',
+        creator_id: 'linus-tech-tips', // Default fallback
+        campaign_id: 'campaign-3',
+        created_at: new Date().toISOString()
+      };
+      
+      console.log('📧 Mock email object created for sending');
+    } else {
+      // Try to get real email from Supabase
+      if (!isSupabaseAvailable()) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database temporarily unavailable'
+        });
+      }
 
-        return res.json({
-          success: true,
-          message: 'Mock email sent successfully',
-          data: mockSentEmail
+      const dbClient = getDbClient(supabaseUserId);
+      
+      if (!dbClient) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database client not available'
+        });
+      }
+
+      // Get email from Supabase
+      const { data: supabaseEmail, error: emailError } = await dbClient
+        .from('outreach_emails')
+        .select('*')
+        .eq('id', emailId)
+        .single();
+
+      if (emailError || !supabaseEmail) {
+        return res.status(404).json({
+          success: false,
+          message: 'Email not found in database'
         });
       }
       
-      return res.status(503).json({
-        success: false,
-        message: 'Database temporarily unavailable'
-      });
-    }
-
-    const emailId = req.params.id;
-    const supabaseUserId = getSupabaseUserId(req.user.id);
-    const dbClient = getDbClient(supabaseUserId);
-
-    if (!dbClient) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database client not available'
-      });
-    }
-
-    // Get email from Supabase
-    const { data: email, error: emailError } = await dbClient
-      .from('outreach_emails')
-      .select('*')
-      .eq('id', emailId)
-      .single();
-
-    if (emailError || !email) {
-      return res.status(404).json({
-        success: false,
-        message: 'Email not found'
-      });
+      email = supabaseEmail;
     }
 
     console.log(`📧 Found email: ${email.subject} for campaign ${email.campaign_id}`);
@@ -459,11 +470,34 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       });
     }
 
-    console.log(`✅ Creator found: ${creator.channel_name} (ID: ${creator.id})`);
+    console.log(`✅ Creator found: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
 
     try {
-      // Send the email
-      const recipientEmail = creator.contact_email || `${creator.channel_name.toLowerCase().replace(/\s+/g, '')}@example.com`;
+      // Extract email from creator data with multiple fallback strategies
+      let recipientEmail = null;
+      
+      // Strategy 1: Direct contactEmail field
+      if (creator.contactEmail) {
+        recipientEmail = creator.contactEmail;
+        console.log(`📧 Using contactEmail: ${recipientEmail}`);
+      }
+      // Strategy 2: Extract from bio (business emails)
+      else if (creator.bio) {
+        const emailMatch = creator.bio.match(/business@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (emailMatch) {
+          recipientEmail = emailMatch[0];
+          console.log(`📧 Extracted from bio: ${recipientEmail}`);
+        }
+      }
+      
+      // Strategy 3: Generate from channel name
+      if (!recipientEmail) {
+        const channelName = creator.channelName || creator.channel_name || 'creator';
+        recipientEmail = `${channelName.toLowerCase().replace(/\s+/g, '')}@example.com`;
+        console.log(`📧 Generated email: ${recipientEmail}`);
+      }
+      
+      console.log(`📧 Sending email to: ${recipientEmail}`);
       
       const emailResult = await emailService.sendEmail({
         to: recipientEmail,
@@ -473,7 +507,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team'
       });
 
-      // Update email status
+            // Update email status
       const updateData = {
         status: 'sent',
         sent_at: new Date().toISOString(),
@@ -485,26 +519,40 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
           deliveryStatus: 'delivered',
           emailId: emailResult.emailId,
           messageId: emailResult.messageId,
-          creatorName: creator.channel_name,
+          creatorName: creator.channelName || creator.channel_name,
           sentAt: new Date().toISOString()
         }
       };
 
-      const { data: updatedEmail, error: updateError } = await dbClient
-        .from('outreach_emails')
-        .update(updateData)
-        .eq('id', emailId)
-        .select()
-        .single();
+      let updatedEmail = null;
+      
+      // Only update in Supabase if it's a real email (not mock)
+      if (!emailId.startsWith('email-') && !emailId.startsWith('mock-') && isSupabaseAvailable()) {
+        const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
+          .from('outreach_emails')
+          .update(updateData)
+          .eq('id', emailId)
+          .select()
+          .single();
 
-      if (updateError) {
-        console.error('Error updating email status:', updateError);
+        if (updateError) {
+          console.error('Error updating email status in Supabase:', updateError);
+        } else {
+          updatedEmail = supabaseUpdatedEmail;
+        }
       }
-
+      
+      // For mock emails, just return the merged data
+      if (!updatedEmail) {
+        updatedEmail = { ...email, ...updateData };
+      }
+    
+      console.log(`✅ Email sent successfully to ${recipientEmail}`);
+    
       res.json({
         success: true,
         message: 'Email sent successfully',
-        data: updatedEmail || { ...email, ...updateData }
+        data: updatedEmail
       });
 
     } catch (emailError) {
@@ -521,17 +569,29 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         }
       };
 
-      const { data: updatedEmail } = await dbClient
-        .from('outreach_emails')
-        .update(updateData)
-        .eq('id', emailId)
-        .select()
-        .single();
+      let updatedEmail = null;
+      
+      // Only update in Supabase if it's a real email (not mock)
+      if (!emailId.startsWith('email-') && !emailId.startsWith('mock-') && isSupabaseAvailable()) {
+        const { data: supabaseUpdatedEmail } = await dbClient
+          .from('outreach_emails')
+          .update(updateData)
+          .eq('id', emailId)
+          .select()
+          .single();
+        
+        updatedEmail = supabaseUpdatedEmail;
+      }
+      
+      // For mock emails, just return the merged data
+      if (!updatedEmail) {
+        updatedEmail = { ...email, ...updateData };
+      }
 
       res.status(500).json({
         success: false,
         message: `Failed to send email: ${emailError.message}`,
-        data: updatedEmail || { ...email, ...updateData }
+        data: updatedEmail
       });
     }
 
