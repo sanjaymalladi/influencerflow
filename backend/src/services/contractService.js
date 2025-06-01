@@ -1,19 +1,20 @@
-let pd_api;
-try {
-  pd_api = require('pandadoc-node-client');
-} catch (error) {
-  console.log('Contract service disabled - pandadoc-node-client not available');
-  pd_api = null;
-}
 const fs = require('fs');
 const path = require('path');
 const { PDFDocument, rgb } = require('pdf-lib');
 const { v4: uuidv4 } = require('uuid');
 
+// Conditionally require pandadoc-node-client
+let pd_api = null;
+try {
+  pd_api = require('pandadoc-node-client');
+} catch (error) {
+  console.warn('pandadoc-node-client not available - contract features will be limited to PDF generation');
+}
+
 class ContractService {
   constructor() {
-    // Initialize PandaDoc only if API key is available
-    if (process.env.PANDADOC_API_KEY) {
+    // Initialize PandaDoc only if API key is available and package is installed
+    if (process.env.PANDADOC_API_KEY && pd_api) {
       this.configuration = pd_api.createConfiguration({
         authMethods: { 
           apiKey: `API-Key ${process.env.PANDADOC_API_KEY}` 
@@ -30,7 +31,11 @@ class ContractService {
       this.templatesApi = new pd_api.TemplatesApi(this.configuration);
       this.isConfigured = true;
     } else {
-      console.warn('PandaDoc API key not configured. Contract functionality will be limited.');
+      if (!pd_api) {
+        console.warn('PandaDoc package not available. Contract functionality will be limited to PDF generation.');
+      } else {
+        console.warn('PandaDoc API key not configured. Contract functionality will be limited.');
+      }
       this.documentsApi = null;
       this.templatesApi = null;
       this.isConfigured = false;
@@ -160,6 +165,9 @@ Influencer: ______________________________ Date: _______
   // Create PandaDoc document from PDF buffer
   async createPandaDocDocument(contractData, pdfData) {
     try {
+      if (!pd_api) {
+        throw new Error('PandaDoc package not available. Contract can only be generated as PDF.');
+      }
       if (!this.isConfigured) {
         throw new Error('PandaDoc is not configured. Please set PANDADOC_API_KEY environment variable.');
       }
@@ -220,6 +228,9 @@ Influencer: ______________________________ Date: _______
   // Send document for signature
   async sendDocumentForSignature(documentId) {
     try {
+      if (!pd_api || !this.isConfigured) {
+        throw new Error('PandaDoc not available for document sending');
+      }
       const response = await this.documentsApi.sendDocument({
         id: documentId,
         documentSendRequest: {
@@ -242,6 +253,9 @@ Influencer: ______________________________ Date: _______
   // Check document status
   async checkDocumentStatus(documentId) {
     try {
+      if (!pd_api || !this.isConfigured) {
+        throw new Error('PandaDoc not available for status checking');
+      }
       const response = await this.documentsApi.statusDocument({
         id: documentId
       });
@@ -260,6 +274,9 @@ Influencer: ______________________________ Date: _______
   // Get signed document
   async getSignedDocument(documentId) {
     try {
+      if (!pd_api || !this.isConfigured) {
+        throw new Error('PandaDoc not available for document download');
+      }
       const response = await this.documentsApi.downloadDocument({
         id: documentId
       });
@@ -294,6 +311,21 @@ Influencer: ______________________________ Date: _______
       // Generate PDF
       console.log('Generating contract PDF...');
       const pdfData = await this.generateContractPDF(contractData);
+
+      // If PandaDoc is not available, return PDF-only result
+      if (!pd_api || !this.isConfigured) {
+        console.log('PandaDoc not available, returning PDF-only contract');
+        return {
+          contractId: uuidv4(),
+          documentId: null,
+          status: 'pdf_generated',
+          contractData,
+          pdfPath: pdfData.filePath,
+          pdfFileName: pdfData.fileName,
+          createdAt: new Date().toISOString(),
+          message: 'Contract generated as PDF. PandaDoc integration not available for digital signing.'
+        };
+      }
 
       // Create PandaDoc document
       console.log('Creating PandaDoc document...');
@@ -372,6 +404,9 @@ Influencer: ______________________________ Date: _______
   // Create contract from template (if using PandaDoc templates)
   async createFromTemplate(templateId, contractData) {
     try {
+      if (!pd_api || !this.isConfigured) {
+        throw new Error('PandaDoc not available for template-based contracts');
+      }
       const documentCreateRequest = {
         name: `Contract for ${contractData.campaignTitle}`,
         templateUuid: templateId,
@@ -455,6 +490,13 @@ Influencer: ______________________________ Date: _______
   // List available templates
   async listTemplates() {
     try {
+      if (!pd_api || !this.isConfigured) {
+        return {
+          templates: [],
+          count: 0,
+          error: 'PandaDoc not available for template listing'
+        };
+      }
       const response = await this.templatesApi.listTemplates({
         deleted: false,
         tag: ['influencer-marketing', 'contract']

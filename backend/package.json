@@ -1,6 +1,6 @@
 {
   "name": "influencerflow-backend",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Backend API for InfluencerFlow - Creator Discovery and Campaign Management Platform",
   "main": "src/index.js",
   "scripts": {

@@ -1,28 +1,7 @@
-let google;
-try {
-  const googleapis = require('googleapis');
-  google = googleapis.google;
-} catch (error) {
-  console.log('Gmail service disabled - googleapis not available');
-  google = null;
-}
-
-let MailerSend, Recipient, EmailParams;
-try {
-  const mailersend = require('mailersend');
-  MailerSend = mailersend.MailerSend;
-  Recipient = mailersend.Recipient;
-  EmailParams = mailersend.EmailParams;
-} catch (error) {
-  console.log('MailerSend service disabled - mailersend not available');
-  MailerSend = null;
-  Recipient = null;
-  EmailParams = null;
-}
-
+const { google } = require('googleapis');
+const { MailerSend, Recipient, EmailParams } = require('mailersend');
 const { v4: uuidv4 } = require('uuid');
 const gmailService = require('./gmailService');
-const { supabase } = require('../config/supabase');
 
 class EmailService {
   constructor() {
