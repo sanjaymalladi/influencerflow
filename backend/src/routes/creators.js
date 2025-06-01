@@ -4,6 +4,17 @@ const { supabase } = require('../config/supabase');
 
 const router = express.Router();
 
+// Helper function to map auth user ID to Supabase UUID
+const getSupabaseUserId = (authUserId) => {
+  // Map the demo user ID to the expected Supabase UUID
+  if (authUserId === '550e8400-e29b-41d4-a716-446655440000' || 
+      authUserId === '1' || 
+      authUserId === 1) {
+    return '550e8400-e29b-41d4-a716-446655440000';
+  }
+  return authUserId; // For other users, assume they're already UUIDs
+};
+
 // @route   GET /api/creators/search
 // @desc    Search creators (integrates with frontend Gemini search)
 // @access  Public (with optional auth)
@@ -71,11 +82,13 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
     // Check if creator already exists for this user
     const { data: existingCreators, error: findError } = await supabase
       .from('creators')
       .select('*')
-      .eq('user_id', req.user.id)
+      .eq('user_id', supabaseUserId)
       .or(`channel_name.ilike.%${channelName}%,youtube_channel_url.eq.${youtubeChannelUrl || ''},contact_email.eq.${contactEmail || ''}`);
 
     if (findError) {
@@ -92,7 +105,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Prepare creator data for Supabase
     const creatorData = {
-      user_id: req.user.id,
+      user_id: supabaseUserId,
       channel_name: channelName,
       youtube_channel_url: youtubeChannelUrl || null,
       instagram_url: instagramUrl || null,
@@ -129,18 +142,22 @@ router.post('/', authenticateToken, async (req, res) => {
       throw new Error('Error saving creator: ' + insertError.message);
     }
 
-    // Log analytics event
-    await supabase
-      .from('analytics_events')
-      .insert([{
-        user_id: req.user.id,
-        event_type: 'creator_added',
-        event_data: {
-          creator_id: newCreator.id,
-          channel_name: channelName,
-          data_source: dataSource
-        }
-      }]);
+    // Log analytics event (optional, may fail if table doesn't exist)
+    try {
+      await supabase
+        .from('analytics_events')
+        .insert([{
+          user_id: supabaseUserId,
+          event_type: 'creator_added',
+          event_data: {
+            creator_id: newCreator.id,
+            channel_name: channelName,
+            data_source: dataSource
+          }
+        }]);
+    } catch (analyticsError) {
+      console.warn('Analytics logging failed:', analyticsError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -163,11 +180,12 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 20, category, platform, search, status = 'active' } = req.query;
+    const supabaseUserId = getSupabaseUserId(req.user.id);
     
     let query = supabase
       .from('creators')
       .select('*')
-      .eq('user_id', req.user.id)
+      .eq('user_id', supabaseUserId)
       .eq('status', status);
 
     // Filter by category
@@ -195,7 +213,7 @@ router.get('/', authenticateToken, async (req, res) => {
     const { count } = await supabase
       .from('creators')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', req.user.id);
+      .eq('user_id', supabaseUserId);
 
     // Apply pagination
     const startIndex = (page - 1) * limit;
@@ -237,11 +255,13 @@ router.get('/', authenticateToken, async (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
     const { data: creator, error } = await supabase
       .from('creators')
       .select('*')
       .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
+      .eq('user_id', supabaseUserId)
       .single();
 
     if (error) {
@@ -286,6 +306,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       followerCount
     } = req.body;
 
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
     const updateData = {};
     
     if (channelName !== undefined) updateData.channel_name = channelName;
@@ -303,7 +325,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       .from('creators')
       .update(updateData)
       .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
+      .eq('user_id', supabaseUserId)
       .select()
       .single();
 
@@ -337,11 +359,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
 // @access  Private
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
     const { error } = await supabase
       .from('creators')
       .delete()
       .eq('id', req.params.id)
-      .eq('user_id', req.user.id);
+      .eq('user_id', supabaseUserId);
 
     if (error) {
       throw new Error('Error deleting creator: ' + error.message);
@@ -375,8 +399,10 @@ router.post('/bulk', authenticateToken, async (req, res) => {
       });
     }
 
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+
     const creatorsData = creators.map(creator => ({
-      user_id: req.user.id,
+      user_id: supabaseUserId,
       channel_name: creator.channelName,
       youtube_channel_url: creator.youtubeChannelUrl || null,
       contact_email: creator.contactEmail || null,
