@@ -5,6 +5,20 @@ const emailService = require('../services/emailService');
 
 const router = express.Router();
 
+// DEBUG ENDPOINT - Remove in production
+router.get('/debug', (req, res) => {
+  res.json({
+    supabaseAvailable: supabase !== null || supabaseAdmin !== null,
+    supabaseClient: supabase ? 'AVAILABLE' : 'NULL',
+    supabaseAdmin: supabaseAdmin ? 'AVAILABLE' : 'NULL',
+    envVars: {
+      SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'SET' : 'MISSING',
+      SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY ? 'SET' : 'MISSING'
+    }
+  });
+});
+
 // Helper function to get the appropriate database client
 const getDbClient = (userId) => {
   const isDemoUser = userId === '550e8400-e29b-41d4-a716-446655440000' || userId === '1';
