@@ -373,8 +373,9 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
     }
 
     // Fallback: Create mock email with local data
+    const timestamp = Date.now();
     const mockEmail = {
-      id: `email-${Date.now()}`,
+      id: `email-${timestamp}`,
       campaign_id: campaign.id,
       creator_id: creator.id,
       campaign_name: campaign.name,
@@ -391,6 +392,7 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
     // Store mock email in memory for later retrieval during sending
     mockEmailsStore.set(mockEmail.id, mockEmail);
     console.log(`✅ Mock email created with ID: ${mockEmail.id} for creator: ${creator.channelName || creator.channel_name}`);
+    console.log(`📧 STORED EMAIL DEBUG - Subject: "${subject}", Content length: ${body.length}, Creator: ${creator.channelName || creator.channel_name} (${creator.id})`);
 
     res.status(201).json({
       success: true,
@@ -432,13 +434,19 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       email = mockEmailsStore.get(emailId);
       
       if (!email) {
+        console.log(`❌ Mock email ${emailId} not found in memory store`);
+        console.log(`📧 Available mock emails: ${Array.from(mockEmailsStore.keys()).join(', ')}`);
         return res.status(404).json({
           success: false,
           message: 'Mock email not found in memory. Please recreate the email.'
         });
       }
       
-      console.log(`📧 Retrieved mock email: "${email.subject}" for creator: ${email.creator_name}`);
+      console.log(`📧 RETRIEVED EMAIL DEBUG - ID: ${emailId}`);
+      console.log(`📧 RETRIEVED EMAIL DEBUG - Subject: "${email.subject}"`);
+      console.log(`📧 RETRIEVED EMAIL DEBUG - Content: "${email.content?.substring(0, 100)}..."`);
+      console.log(`📧 RETRIEVED EMAIL DEBUG - Creator: ${email.creator_name} (${email.creator_id})`);
+      console.log(`📧 RETRIEVED EMAIL DEBUG - Stored creator: ${email._creator?.channelName || email._creator?.channel_name}`);
     } else {
       // Try to get real email from Supabase
       if (!isSupabaseAvailable()) {
@@ -504,9 +512,14 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         recipientEmail = creator.contactEmail;
         console.log(`📧 Using contactEmail: ${recipientEmail}`);
       }
-      // Strategy 2: Extract from bio (business emails)
+      // Strategy 2: Extract from bio (business emails or general emails)
       else if (creator.bio) {
-        const emailMatch = creator.bio.match(/business@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        // Look for business emails first
+        let emailMatch = creator.bio.match(/business@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (!emailMatch) {
+          // Look for any email in bio
+          emailMatch = creator.bio.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        }
         if (emailMatch) {
           recipientEmail = emailMatch[0];
           console.log(`📧 Extracted from bio: ${recipientEmail}`);
@@ -650,6 +663,122 @@ router.get('/templates', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching templates'
+    });
+  }
+});
+
+// @route   GET /api/outreach/pipeline
+// @desc    Get CRM-style email pipeline with stages
+// @access  Private
+router.get('/pipeline', authenticateToken, async (req, res) => {
+  try {
+    if (!isSupabaseAvailable()) {
+      return res.json({
+        success: true,
+        data: {
+          pipeline: {
+            draft: [],
+            sent: [],
+            opened: [],
+            replied: [],
+            failed: []
+          },
+          metrics: {
+            totalEmails: 0,
+            draftCount: 0,
+            sentCount: 0,
+            openedCount: 0,
+            repliedCount: 0,
+            failedCount: 0,
+            openRate: '0',
+            replyRate: '0',
+            deliveryRate: '0'
+          }
+        }
+      });
+    }
+
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
+
+    if (!dbClient) {
+      return res.json({
+        success: true,
+        data: {
+          pipeline: { draft: [], sent: [], opened: [], replied: [], failed: [] },
+          metrics: { totalEmails: 0, draftCount: 0, sentCount: 0, openedCount: 0, repliedCount: 0, failedCount: 0, openRate: '0', replyRate: '0', deliveryRate: '0' }
+        }
+      });
+    }
+
+    const { data: emails, error } = await dbClient
+      .from('outreach_emails')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error('Error fetching pipeline emails: ' + error.message);
+    }
+
+    // Merge with mock emails
+    const allEmails = [...(emails || [])];
+    for (const [emailId, mockEmail] of mockEmailsStore.entries()) {
+      const { _creator, _campaign, ...publicEmail } = mockEmail;
+      allEmails.push(publicEmail);
+    }
+
+    // Group emails by status
+    const pipeline = {
+      draft: allEmails.filter(e => e.status === 'draft'),
+      sent: allEmails.filter(e => e.status === 'sent'),
+      opened: allEmails.filter(e => e.status === 'opened'),
+      replied: allEmails.filter(e => e.status === 'replied'),
+      failed: allEmails.filter(e => e.status === 'failed')
+    };
+
+    const totalEmails = allEmails.length;
+    const sentEmails = pipeline.sent.length + pipeline.opened.length + pipeline.replied.length;
+    
+    const metrics = {
+      totalEmails,
+      draftCount: pipeline.draft.length,
+      sentCount: pipeline.sent.length,
+      openedCount: pipeline.opened.length,
+      repliedCount: pipeline.replied.length,
+      failedCount: pipeline.failed.length,
+      openRate: sentEmails > 0 ? (((pipeline.opened.length + pipeline.replied.length) / sentEmails) * 100).toFixed(2) : '0',
+      replyRate: sentEmails > 0 ? ((pipeline.replied.length / sentEmails) * 100).toFixed(2) : '0',
+      deliveryRate: totalEmails > 0 ? (((totalEmails - pipeline.failed.length) / totalEmails) * 100).toFixed(2) : '0'
+    };
+
+    res.json({
+      success: true,
+      data: { pipeline, metrics }
+    });
+
+  } catch (error) {
+    console.error('Get pipeline error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching pipeline data'
+    });
+  }
+});
+
+// @route   GET /api/outreach/pending-approvals
+// @desc    Get pending approvals (placeholder)
+// @access  Private
+router.get('/pending-approvals', authenticateToken, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: { approvals: [] }
+    });
+  } catch (error) {
+    console.error('Get pending approvals error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching pending approvals'
     });
   }
 });
