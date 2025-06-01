@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { creatorsData } = require('../utils/dataStorage');
+const { supabase } = require('../config/supabase');
 
 const router = express.Router();
 
@@ -38,14 +38,17 @@ router.get('/search', optionalAuth, async (req, res) => {
 // @route   POST /api/creators
 // @desc    Save a creator to database (from frontend search results)
 // @access  Private
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const {
       channelName,
       profileImageUrl,
       youtubeChannelUrl,
+      instagramUrl,
+      tiktokUrl,
       bio,
       subscriberCount,
+      followerCount,
       viewCount,
       videoCount,
       matchPercentage,
@@ -54,7 +57,10 @@ router.post('/', authenticateToken, (req, res) => {
       engagementRate,
       dataSource,
       geminiBio,
-      popularVideos
+      popularVideos,
+      contactEmail,
+      notes,
+      tags
     } = req.body;
 
     // Validation
@@ -65,42 +71,76 @@ router.post('/', authenticateToken, (req, res) => {
       });
     }
 
-    // Check if creator already exists
-    const existingCreators = creatorsData.getAll();
-    const existingCreator = existingCreators.find(
-      creator => creator.channelName.toLowerCase() === channelName.toLowerCase() ||
-                 (youtubeChannelUrl && creator.youtubeChannelUrl === youtubeChannelUrl)
-    );
+    // Check if creator already exists for this user
+    const { data: existingCreators, error: findError } = await supabase
+      .from('creators')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .or(`channel_name.ilike.%${channelName}%,youtube_channel_url.eq.${youtubeChannelUrl || ''},contact_email.eq.${contactEmail || ''}`);
 
-    if (existingCreator) {
+    if (findError) {
+      throw new Error('Error checking existing creators: ' + findError.message);
+    }
+
+    if (existingCreators && existingCreators.length > 0) {
       return res.status(409).json({
         success: false,
         message: 'Creator already saved',
-        data: { creator: existingCreator }
+        data: { creator: existingCreators[0] }
       });
     }
 
-    // Create new creator
+    // Prepare creator data for Supabase
     const creatorData = {
-      channelName,
-      profileImageUrl: profileImageUrl || null,
-      youtubeChannelUrl: youtubeChannelUrl || null,
-      bio: bio || '',
-      subscriberCount: subscriberCount || null,
-      viewCount: viewCount || null,
-      videoCount: videoCount || null,
-      matchPercentage: matchPercentage || null,
+      user_id: req.user.id,
+      channel_name: channelName,
+      youtube_channel_url: youtubeChannelUrl || null,
+      instagram_url: instagramUrl || null,
+      tiktok_url: tiktokUrl || null,
+      subscriber_count: subscriberCount || null,
+      follower_count: followerCount || null,
       categories: categories || [],
-      typicalViews: typicalViews || null,
-      engagementRate: engagementRate || null,
-      dataSource: dataSource || 'Manual',
-      geminiBio: geminiBio || null,
-      popularVideos: popularVideos || [],
-      createdAt: new Date().toISOString(),
-      addedBy: req.user.id
+      contact_email: contactEmail || null,
+      avatar_url: profileImageUrl || null,
+      stats: {
+        viewCount: viewCount || null,
+        videoCount: videoCount || null,
+        matchPercentage: matchPercentage || null,
+        typicalViews: typicalViews || null,
+        engagementRate: engagementRate || null,
+        bio: bio || '',
+        geminiBio: geminiBio || null,
+        popularVideos: popularVideos || [],
+        dataSource: dataSource || 'Manual'
+      },
+      notes: notes || null,
+      tags: tags || [],
+      status: 'active'
     };
 
-    const newCreator = creatorsData.add(creatorData);
+    // Insert creator into Supabase
+    const { data: newCreator, error: insertError } = await supabase
+      .from('creators')
+      .insert([creatorData])
+      .select()
+      .single();
+
+    if (insertError) {
+      throw new Error('Error saving creator: ' + insertError.message);
+    }
+
+    // Log analytics event
+    await supabase
+      .from('analytics_events')
+      .insert([{
+        user_id: req.user.id,
+        event_type: 'creator_added',
+        event_data: {
+          creator_id: newCreator.id,
+          channel_name: channelName,
+          data_source: dataSource
+        }
+      }]);
 
     res.status(201).json({
       success: true,
@@ -112,7 +152,7 @@ router.post('/', authenticateToken, (req, res) => {
     console.error('Save creator error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error saving creator'
+      message: error.message || 'Server error saving creator'
     });
   }
 });
@@ -120,52 +160,64 @@ router.post('/', authenticateToken, (req, res) => {
 // @route   GET /api/creators
 // @desc    Get all saved creators
 // @access  Private
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, category, platform, search } = req.query;
+    const { page = 1, limit = 20, category, platform, search, status = 'active' } = req.query;
     
-    let filteredCreators = creatorsData.getAll();
+    let query = supabase
+      .from('creators')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .eq('status', status);
 
     // Filter by category
     if (category) {
-      filteredCreators = filteredCreators.filter(creator =>
-        creator.categories.some(cat => 
-          cat.toLowerCase().includes(category.toLowerCase())
-        )
-      );
+      query = query.contains('categories', [category]);
     }
 
-    // Filter by platform (based on data source)
+    // Filter by platform
     if (platform) {
       if (platform === 'youtube') {
-        filteredCreators = filteredCreators.filter(creator =>
-          creator.youtubeChannelUrl || creator.dataSource.includes('YouTube')
-        );
+        query = query.not('youtube_channel_url', 'is', null);
+      } else if (platform === 'instagram') {
+        query = query.not('instagram_url', 'is', null);
+      } else if (platform === 'tiktok') {
+        query = query.not('tiktok_url', 'is', null);
       }
     }
 
-    // Search by name
+    // Search by name or email
     if (search) {
-      filteredCreators = filteredCreators.filter(creator =>
-        creator.channelName.toLowerCase().includes(search.toLowerCase()) ||
-        creator.bio.toLowerCase().includes(search.toLowerCase())
-      );
+      query = query.or(`channel_name.ilike.%${search}%,contact_email.ilike.%${search}%`);
     }
 
-    // Pagination
+    // Get total count for pagination
+    const { count } = await supabase
+      .from('creators')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', req.user.id);
+
+    // Apply pagination
     const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedCreators = filteredCreators.slice(startIndex, endIndex);
+    query = query
+      .range(startIndex, startIndex + parseInt(limit) - 1)
+      .order('created_at', { ascending: false });
+
+    const { data: creators, error } = await query;
+
+    if (error) {
+      throw new Error('Error fetching creators: ' + error.message);
+    }
 
     res.json({
       success: true,
       data: {
-        creators: paginatedCreators,
+        creators: creators || [],
         pagination: {
           currentPage: parseInt(page),
-          totalPages: Math.ceil(filteredCreators.length / limit),
-          totalCreators: filteredCreators.length,
-          hasNext: endIndex < filteredCreators.length,
+          totalPages: Math.ceil(count / limit),
+          totalCreators: count,
+          hasNext: startIndex + parseInt(limit) < count,
           hasPrev: page > 1
         }
       }
@@ -175,7 +227,7 @@ router.get('/', authenticateToken, (req, res) => {
     console.error('Get creators error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching creators'
+      message: error.message || 'Server error fetching creators'
     });
   }
 });
@@ -183,15 +235,23 @@ router.get('/', authenticateToken, (req, res) => {
 // @route   GET /api/creators/:id
 // @desc    Get specific creator
 // @access  Private
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const creator = creatorsData.findById(req.params.id);
+    const { data: creator, error } = await supabase
+      .from('creators')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
 
-    if (!creator) {
-      return res.status(404).json({
-        success: false,
-        message: 'Creator not found'
-      });
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'Creator not found'
+        });
+      }
+      throw new Error('Error fetching creator: ' + error.message);
     }
 
     res.json({
@@ -203,46 +263,59 @@ router.get('/:id', authenticateToken, (req, res) => {
     console.error('Get creator error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching creator'
+      message: error.message || 'Server error fetching creator'
     });
   }
 });
 
 // @route   PUT /api/creators/:id
-// @desc    Update creator information
+// @desc    Update creator
 // @access  Private
-router.put('/:id', authenticateToken, (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const creator = creatorsData.findById(req.params.id);
+    const {
+      channelName,
+      contactEmail,
+      notes,
+      tags,
+      status,
+      categories,
+      instagramUrl,
+      tiktokUrl,
+      subscriberCount,
+      followerCount
+    } = req.body;
 
-    if (!creator) {
-      return res.status(404).json({
-        success: false,
-        message: 'Creator not found'
-      });
-    }
+    const updateData = {};
+    
+    if (channelName !== undefined) updateData.channel_name = channelName;
+    if (contactEmail !== undefined) updateData.contact_email = contactEmail;
+    if (notes !== undefined) updateData.notes = notes;
+    if (tags !== undefined) updateData.tags = tags;
+    if (status !== undefined) updateData.status = status;
+    if (categories !== undefined) updateData.categories = categories;
+    if (instagramUrl !== undefined) updateData.instagram_url = instagramUrl;
+    if (tiktokUrl !== undefined) updateData.tiktok_url = tiktokUrl;
+    if (subscriberCount !== undefined) updateData.subscriber_count = subscriberCount;
+    if (followerCount !== undefined) updateData.follower_count = followerCount;
 
-    // Update allowed fields
-    const allowedUpdates = [
-      'bio', 'categories', 'notes', 'subscriberCount', 'engagementRate', 
-      'recentGrowth', 'videoCount', 'dataSource', 'typicalViews', 'viewCount'
-    ];
-    const updates = {};
+    const { data: updatedCreator, error } = await supabase
+      .from('creators')
+      .update(updateData)
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .select()
+      .single();
 
-    allowedUpdates.forEach(field => {
-      if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'Creator not found'
+        });
       }
-    });
-
-    // Add notes field if it doesn't exist
-    if (!creator.notes) {
-      updates.notes = '';
+      throw new Error('Error updating creator: ' + error.message);
     }
-
-    updates.updatedAt = new Date().toISOString();
-
-    const updatedCreator = creatorsData.update(req.params.id, updates);
 
     res.json({
       success: true,
@@ -254,7 +327,7 @@ router.put('/:id', authenticateToken, (req, res) => {
     console.error('Update creator error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error updating creator'
+      message: error.message || 'Server error updating creator'
     });
   }
 });
@@ -262,105 +335,82 @@ router.put('/:id', authenticateToken, (req, res) => {
 // @route   DELETE /api/creators/:id
 // @desc    Delete creator
 // @access  Private
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const creator = creatorsData.findById(req.params.id);
+    const { error } = await supabase
+      .from('creators')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id);
 
-    if (!creator) {
-      return res.status(404).json({
-        success: false,
-        message: 'Creator not found'
-      });
+    if (error) {
+      throw new Error('Error deleting creator: ' + error.message);
     }
 
-    const deleted = creatorsData.delete(req.params.id);
-
-    if (deleted) {
-      res.json({
-        success: true,
-        message: 'Creator deleted successfully'
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to delete creator'
-      });
-    }
+    res.json({
+      success: true,
+      message: 'Creator deleted successfully'
+    });
 
   } catch (error) {
     console.error('Delete creator error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error deleting creator'
+      message: error.message || 'Server error deleting creator'
     });
   }
 });
 
-// @route   POST /api/creators/lists
-// @desc    Create a creator list
+// @route   POST /api/creators/bulk
+// @desc    Save multiple creators
 // @access  Private
-router.post('/lists', authenticateToken, (req, res) => {
+router.post('/bulk', authenticateToken, async (req, res) => {
   try {
-    const { name, description, creatorIds } = req.body;
+    const { creators } = req.body;
 
-    if (!name) {
+    if (!Array.isArray(creators) || creators.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'List name is required'
+        message: 'Creators array is required'
       });
     }
 
-    const newList = {
-      id: (creatorLists.length + 1).toString(),
-      name,
-      description: description || '',
-      creatorIds: creatorIds || [],
-      userId: req.user.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    creatorLists.push(newList);
-
-    res.status(201).json({
-      success: true,
-      message: 'Creator list created successfully',
-      data: { list: newList }
-    });
-
-  } catch (error) {
-    console.error('Create list error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error creating list'
-    });
-  }
-});
-
-// @route   GET /api/creators/lists
-// @desc    Get user's creator lists
-// @access  Private
-router.get('/lists', authenticateToken, (req, res) => {
-  try {
-    const userLists = creatorLists.filter(list => list.userId === req.user.id);
-
-    const listsWithCreators = userLists.map(list => ({
-      ...list,
-      creators: list.creatorIds.map(id => 
-        creatorsData.findById(id)
-      ).filter(Boolean)
+    const creatorsData = creators.map(creator => ({
+      user_id: req.user.id,
+      channel_name: creator.channelName,
+      youtube_channel_url: creator.youtubeChannelUrl || null,
+      contact_email: creator.contactEmail || null,
+      avatar_url: creator.profileImageUrl || null,
+      categories: creator.categories || [],
+      stats: {
+        subscriberCount: creator.subscriberCount,
+        engagementRate: creator.engagementRate,
+        bio: creator.bio || '',
+        dataSource: creator.dataSource || 'Bulk Import'
+      },
+      status: 'active'
     }));
+
+    const { data: newCreators, error } = await supabase
+      .from('creators')
+      .insert(creatorsData)
+      .select();
+
+    if (error) {
+      throw new Error('Error saving creators: ' + error.message);
+    }
 
     res.json({
       success: true,
-      data: { lists: listsWithCreators }
+      message: `${newCreators.length} creators saved successfully`,
+      data: { creators: newCreators }
     });
 
   } catch (error) {
-    console.error('Get lists error:', error);
+    console.error('Bulk save creators error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error fetching lists'
+      message: error.message || 'Server error saving creators'
     });
   }
 });

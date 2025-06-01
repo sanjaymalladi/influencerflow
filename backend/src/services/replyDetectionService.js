@@ -164,7 +164,7 @@ class ReplyDetectionService {
       references: emailData.references,
       inReplyTo: emailData.inReplyTo
     });
-    
+
     return null;
   }
 
@@ -215,7 +215,7 @@ class ReplyDetectionService {
         case 'terms_agreed':
           if (analysis.intent === 'agreement') {
             analysis.requiresHumanApproval = true;
-            analysis.priority = 'high';
+        analysis.priority = 'high';
             analysis.suggestedStage = 'contract_pending';
             analysis.actionType = 'generate_contract';
             analysis.humanMessage = 'Creator agreed to terms. Please review and approve contract generation.';
@@ -225,7 +225,7 @@ class ReplyDetectionService {
         case 'contract_sent':
           if (this.containsSignedContract(replyText)) {
             analysis.requiresHumanApproval = true;
-            analysis.priority = 'high';
+        analysis.priority = 'high';
             analysis.suggestedStage = 'contract_signed';
             analysis.actionType = 'verify_contract';
             analysis.humanMessage = 'Creator has returned signed contract. Please verify and approve.';
@@ -353,8 +353,8 @@ Looking forward to working together!
 Best regards,
 Campaign Manager
 InfluencerFlow Team`;
-  }
-
+    }
+    
   // Generate contract preparation response
   generateContractResponse(conversation) {
     return `Perfect! I'm thrilled that we're aligned on the collaboration details.
