@@ -1,7 +1,7 @@
 [
   {
     "campaignId": "demo-campaign-1",
-    "creatorId": "linus-tech-tips",
+    "creatorId": "1",
     "subject": "Partnership Opportunity - Tech Product Launch",
     "body": "Hi Linus,\n\nI hope this email finds you well! I've been following your incredible tech reviews and I'm really impressed by your thorough analysis and genuine perspective on technology products.\n\nI'm reaching out about an exciting collaboration opportunity with our Tech Product Launch Q1 2024 campaign.\n\nCampaign Details:\n- Launch campaign for our new smartphone featuring top tech reviewers\n- Budget: $50,000\n- Goals: Brand Awareness, Product Reviews, Social Media Buzz\n- Deliverables: 5x Video Review ($5,000 each), 10x Social Media Posts ($1,000 each), 3x Unboxing Video ($3,000 each)\n\nWe believe your unique voice and engaged audience would be perfect for this campaign, and we're offering competitive compensation.\n\nWould you be interested in learning more about this partnership opportunity?\n\nBest regards,\nCampaign Manager",
     "status": "replied",
@@ -14,18 +14,19 @@
     "messageId": "sent-1748752847507@gmail.com",
     "repliedAt": "2025-06-01T04:40:47.626Z",
     "openedAt": "2025-06-01T04:23:40.631Z",
-    "notes": "Reply received: Its completely fine i am ok with the deliverables..."
+    "notes": "Reply received: Its completely fine i am ok with the deliverables...\n🔧 Creator ID migrated from \"linus-tech-tips\" to \"1\" on 2025-06-01T13:31:16.228Z"
   },
   {
     "campaignId": "demo-campaign-1",
-    "creatorId": "marques-brownlee",
+    "creatorId": "2",
     "subject": "Exclusive Tech Review Partnership",
     "body": "Hi Marques,\n\nI hope you're doing well! I've been following your content for years and your reviews have genuinely influenced my tech purchasing decisions.\n\nI'm excited to reach out about a collaboration opportunity with our Tech Product Launch Q1 2024 campaign.\n\nCampaign Details:\n- Launch campaign for our new smartphone featuring top tech reviewers\n- Budget: $50,000\n- Goals: Brand Awareness, Product Reviews, Social Media Buzz\n- Deliverables: 5x Video Review ($5,000 each), 10x Social Media Posts ($1,000 each), 3x Unboxing Video ($3,000 each)\n\nGiven your expertise in smartphone reviews and your incredible production quality, we think this would be a perfect fit.\n\nWould you be interested in discussing this further?\n\nBest regards,\nCampaign Manager",
     "status": "sent",
     "createdAt": "2025-05-31T06:35:06.494Z",
     "createdBy": "1",
     "id": "2",
-    "sentAt": "2025-05-31T06:46:24.241Z"
+    "sentAt": "2025-05-31T06:46:24.241Z",
+    "notes": "\n🔧 Creator ID migrated from \"marques-brownlee\" to \"2\" on 2025-06-01T13:31:16.230Z"
   },
   {
     "campaignId": "demo-campaign-1",
@@ -84,13 +85,14 @@
   },
   {
     "campaignId": "demo-campaign-1",
-    "creatorId": "sanjay-malladi",
+    "creatorId": "8",
     "subject": "Test Email - InfluencerFlow Outreach System",
     "body": "Hi Sanjay,\n\nThis is a test email from the InfluencerFlow system to verify that our outreach workflow is working correctly.\n\nCampaign Details:\n- Tech Product Launch Q1 2024\n- Budget: $50,000\n- Deliverables: Video reviews, social posts, unboxing videos\n\nWe're testing:\n✅ Email creation\n✅ Email sending via MailerSend\n✅ CRM tracking and status updates\n✅ Real email delivery to your inbox\n\nIf you receive this email, our integration is working perfectly!\n\nBest regards,\nThe InfluencerFlow Team\n\n---\nThis is an automated test email from the InfluencerFlow CRM system.",
     "status": "draft",
     "createdBy": "1",
     "createdAt": "2025-05-31T12:26:13.635Z",
-    "id": "8"
+    "id": "8",
+    "notes": "\n🔧 Creator ID migrated from \"sanjay-malladi\" to \"8\" on 2025-06-01T13:31:16.230Z"
   },
   {
     "campaignId": "demo-campaign-1",
@@ -404,5 +406,35 @@
     "provider": "gmail",
     "recipientEmail": "malladisanjay29@gmail.com",
     "deliveryStatus": "delivered"
+  },
+  {
+    "campaignId": "campaign-3",
+    "creatorId": "01cc9cc7-143e-47d2-bbc6-1dedbc20187c",
+    "subject": "Level Up Your Tech Content with the Meta Ray-Ban Smart Glasses - Collaboration Opportunity",
+    "body": "Dear Sanjay,\n\nMy name is Demo User, and I'm a Marketing Manager at Demo Company. I've been a long-time follower of your YouTube channel, Sanjay Malladi, and I'm incredibly impressed by your insightful content on technology, AI/ML, and entrepreneurship.  Your tutorials are particularly well-explained, and your startup advice resonates with a clear understanding of the challenges and opportunities in the tech space.\n\nWe're launching the Meta Ray-Ban smart glasses in India, and we believe a collaboration with you would be a perfect fit. Your audience is highly engaged and tech-savvy – precisely the target demographic for this innovative product.  Your expertise in reviewing and explaining complex technology would be invaluable in showcasing the Ray-Ban smart glasses' features and benefits to your viewers.\n\nWe're proposing a collaboration where you create a comprehensive unboxing and review video of the Meta Ray-Ban smart glasses.  This video would cover the product's design, functionality, user experience, and overall value proposition, all through your unique and engaging lens.\n\nFor this single unboxing video, we're offering a compensation of $10,000.  This includes the provision of the Meta Ray-Ban smart glasses and full creative freedom to ensure the video aligns with your channel's style and voice.\n\nWe're confident that this collaboration will not only provide you with a substantial income but also expose your channel to a wider audience interested in cutting-edge technology.\n\nWould you be open to a brief call next week to discuss this opportunity further? Please let me know your availability.\n\nSincerely,\n\nDemo User\nMarketing Manager\nDemo Company",
+    "status": "draft",
+    "createdBy": "550e8400-e29b-41d4-a716-446655440000",
+    "createdAt": "2025-06-01T13:26:14.623Z",
+    "id": "31"
+  },
+  {
+    "campaignId": "campaign-3",
+    "creatorId": "01cc9cc7-143e-47d2-bbc6-1dedbc20187c",
+    "subject": "Level Up Your Tech Content with the Meta Ray-Ban Smart Glasses - Collaboration Opportunity",
+    "body": "Dear Sanjay,\n\nMy name is Demo User, and I'm a Marketing Manager at Demo Company. I've been a long-time follower of your YouTube channel, Sanjay Malladi, and I'm incredibly impressed by your insightful content on technology, AI/ML, and entrepreneurship.  Your tutorials are particularly well-explained, and your startup advice resonates with a clear understanding of the challenges and opportunities in the tech space.\n\nWe're launching the Meta Ray-Ban smart glasses in India, and we believe a collaboration with you would be a perfect fit. Your audience is highly engaged and tech-savvy – precisely the target demographic for this innovative product.  Your expertise in reviewing and explaining complex technology would be invaluable in showcasing the Ray-Ban smart glasses' features and benefits to your viewers.\n\nWe're proposing a collaboration where you create a comprehensive unboxing and review video of the Meta Ray-Ban smart glasses.  This video would cover the product's design, functionality, user experience, and overall value proposition, all through your unique and engaging lens.\n\nFor this single unboxing video, we're offering a compensation of $10,000.  This includes the provision of the Meta Ray-Ban smart glasses and full creative freedom to ensure the video aligns with your channel's style and voice.\n\nWe're confident that this collaboration will not only provide you with a substantial income but also expose your channel to a wider audience interested in cutting-edge technology.\n\nWould you be open to a brief call next week to discuss this opportunity further? Please let me know your availability.\n\nSincerely,\n\nDemo User\nMarketing Manager\nDemo Company",
+    "status": "draft",
+    "createdBy": "550e8400-e29b-41d4-a716-446655440000",
+    "createdAt": "2025-06-01T13:26:39.093Z",
+    "id": "32"
+  },
+  {
+    "campaignId": "campaign-3",
+    "creatorId": "01cc9cc7-143e-47d2-bbc6-1dedbc20187c",
+    "subject": "Level Up Your Tech Content with the Meta Ray-Ban Smart Glasses: A Collaboration Opportunity",
+    "body": "Dear Sanjay,\n\nMy name is Demo User, and I'm a Marketing Manager at Demo Company. I've been a long-time follower of your channel, Sanjay Malladi, and I'm incredibly impressed with your insightful content on technology, AI/ML, and entrepreneurship.  Your tutorials are particularly well-explained and your startup advice resonates deeply with a tech-savvy audience – a demographic perfectly aligned with the launch of Meta Ray-Ban smart glasses in India.\n\nWe're launching a major campaign to promote the Meta Ray-Ban smart glasses in India, and we believe a collaboration with you would be mutually beneficial. Your expertise in cutting-edge technology and your ability to connect with a tech-enthusiast audience make you an ideal partner.\n\nWe're proposing a collaboration where you create a comprehensive unboxing and review video showcasing the features and functionality of the Meta Ray-Ban smart glasses. This video would provide your audience with a first-hand look at this innovative product, leveraging your knack for clear and engaging tech explanations.\n\nThe compensation for this single unboxing video is $10,000.  We'll provide you with a review unit and full creative freedom to ensure the video aligns with your existing content style and resonates with your audience.  We're confident that this collaboration will not only introduce your viewers to a groundbreaking product but also significantly boost your channel's reach.\n\nWe're excited about the possibility of working with you.  Would you be open to a brief call next week to discuss this opportunity further? Please let me know your availability.\n\nSincerely,\n\nDemo User\nMarketing Manager\nDemo Company",
+    "status": "draft",
+    "createdBy": "550e8400-e29b-41d4-a716-446655440000",
+    "createdAt": "2025-06-01T13:27:40.882Z",
+    "id": "33"
   }
 ]

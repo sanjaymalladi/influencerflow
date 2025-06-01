@@ -224,14 +224,54 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       });
     }
 
-    // Get creator data for email address
-    const creator = creatorsData.findById(email.creatorId);
+    // Enhanced creator lookup - try multiple strategies
+    let creator = null;
+    
+    // Strategy 1: Direct ID lookup
+    creator = creatorsData.findById(email.creatorId);
+    
+    // Strategy 2: If not found, try to find by channel name (for string-based IDs)
     if (!creator) {
+      const allCreators = creatorsData.getAll();
+      
+      // Try to match by channel name slug (e.g., "linus-tech-tips" -> "Linus Tech Tips")
+      const channelNameFromId = email.creatorId
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      
+      creator = allCreators.find(c => 
+        c.channelName.toLowerCase() === channelNameFromId.toLowerCase() ||
+        c.channelName.toLowerCase().replace(/\s+/g, '-') === email.creatorId.toLowerCase() ||
+        c.id === email.creatorId
+      );
+    }
+    
+    // Strategy 3: If still not found, try exact channel name match
+    if (!creator) {
+      const allCreators = creatorsData.getAll();
+      creator = allCreators.find(c => 
+        c.channelName.toLowerCase().includes(email.creatorId.toLowerCase()) ||
+        email.creatorId.toLowerCase().includes(c.channelName.toLowerCase())
+      );
+    }
+
+    if (!creator) {
+      console.error(`Creator lookup failed for creatorId: "${email.creatorId}"`);
+      console.error('Available creators:', creatorsData.getAll().map(c => ({ id: c.id, name: c.channelName })));
+      
       return res.status(404).json({
         success: false,
-        message: 'Creator not found'
+        message: 'Creator not found',
+        debug: {
+          emailId: emailId,
+          creatorId: email.creatorId,
+          availableCreators: creatorsData.getAll().map(c => ({ id: c.id, name: c.channelName }))
+        }
       });
     }
+
+    console.log(`✅ Creator found: ${creator.channelName} (ID: ${creator.id}) for email creatorId: ${email.creatorId}`);
 
     try {
       // Actually send the email using the email service
@@ -245,9 +285,9 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team'
       });
 
-      // Update email status with send details
-    const updatedEmail = outreachEmailsData.update(emailId, {
-      status: 'sent',
+      // Update email status with send details and fix creator ID if needed
+      const updatedEmail = outreachEmailsData.update(emailId, {
+        status: 'sent',
         sentAt: new Date().toISOString(),
         messageId: emailResult.messageId,
         provider: emailResult.provider,
@@ -255,14 +295,17 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         deliveryStatus: 'delivered',
         // Store Gmail-specific email ID for reply tracking
         emailId: emailResult.emailId,
-        customEmailId: emailResult.emailId ? emailResult.emailId.replace('EMAIL-ID-', '') : null
-    });
+        customEmailId: emailResult.emailId ? emailResult.emailId.replace('EMAIL-ID-', '') : null,
+        // Fix creator ID to use the correct numeric ID for future consistency
+        creatorId: creator.id,
+        notes: (email.notes || '') + `\n✅ Creator ID normalized from "${email.creatorId}" to "${creator.id}"`
+      });
 
-    res.json({
-      success: true,
-      message: 'Email sent successfully',
-      data: updatedEmail
-    });
+      res.json({
+        success: true,
+        message: 'Email sent successfully',
+        data: updatedEmail
+      });
 
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
