@@ -135,7 +135,7 @@ class EmailService {
 
   // Main send email method
   async sendEmail(emailData) {
-    const trackingId = uuidv4();
+    const trackingId = emailData.customEmailId || uuidv4();
     const dataWithTracking = { ...emailData, trackingId };
 
     try {

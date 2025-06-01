@@ -538,12 +538,21 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       console.log(`📧 FINAL DEBUG - Subject: ${email.subject}`);
       console.log(`📧 FINAL DEBUG - Content length: ${email.content?.length || 0} characters`);
       
+      // Add tracking footer to email content
+      const emailContentWithFooter = `${email.content}
+
+---
+This email was sent via InfluencerFlow
+Reference ID: ${emailId.toUpperCase()}`;
+
       const emailResult = await emailService.sendEmail({
         to: recipientEmail,
         subject: email.subject,
-        body: email.content,
+        body: emailContentWithFooter,
         from: process.env.DEFAULT_FROM_EMAIL || 'outreach@influencerflow.com',
-        fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team'
+        fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team',
+        // Add reference ID for tracking
+        customEmailId: emailId
       });
 
             // Update email status
@@ -766,10 +775,11 @@ router.get('/pipeline', authenticateToken, async (req, res) => {
 });
 
 // @route   GET /api/outreach/pending-approvals
-// @desc    Get pending approvals (placeholder)
+// @desc    Get pending approvals (placeholder for now)
 // @access  Private
 router.get('/pending-approvals', authenticateToken, async (req, res) => {
   try {
+    // For now, return empty array - can be extended with actual approval system
     res.json({
       success: true,
       data: { approvals: [] }
@@ -779,6 +789,107 @@ router.get('/pending-approvals', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching pending approvals'
+    });
+  }
+});
+
+// @route   POST /api/outreach/emails/:id/simulate-reply
+// @desc    Simulate a creator reply for demo purposes
+// @access  Private
+router.post('/emails/:id/simulate-reply', authenticateToken, async (req, res) => {
+  try {
+    const emailId = req.params.id;
+    const { replyContent } = req.body;
+
+    // Check if this is a mock email
+    let email = null;
+    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+      email = mockEmailsStore.get(emailId);
+    } else if (isSupabaseAvailable()) {
+      const supabaseUserId = getSupabaseUserId(req.user.id);
+      const dbClient = getDbClient(supabaseUserId);
+      const { data: supabaseEmail } = await dbClient
+        .from('outreach_emails')
+        .select('*')
+        .eq('id', emailId)
+        .single();
+      email = supabaseEmail;
+    }
+
+    if (!email) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email not found'
+      });
+    }
+
+    // Get creator data
+    const creator = await findCreatorById(email.creator_id, req.user.id);
+    if (!creator) {
+      return res.status(404).json({
+        success: false,
+        message: 'Creator not found'
+      });
+    }
+
+    // Use provided reply content or generate a realistic one
+    const defaultReplyContent = replyContent || `Hi there!
+
+Thanks for reaching out about the collaboration opportunity. This sounds interesting!
+
+I'm definitely interested in learning more. Could you share more details about:
+- The specific deliverables you're looking for
+- Timeline expectations  
+- Compensation structure
+
+Looking forward to hearing from you!
+
+Best,
+${creator.channelName || creator.channel_name}`;
+
+    // Update email status to replied
+    const updateData = {
+      status: 'replied',
+      replied_at: new Date().toISOString(),
+      reply_content: defaultReplyContent
+    };
+
+    let updatedEmail = null;
+
+    // Update in appropriate storage
+    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+      updatedEmail = { ...email, ...updateData };
+      mockEmailsStore.set(emailId, updatedEmail);
+    } else if (isSupabaseAvailable()) {
+      const supabaseUserId = getSupabaseUserId(req.user.id);
+      const dbClient = getDbClient(supabaseUserId);
+      const { data: supabaseUpdatedEmail } = await dbClient
+        .from('outreach_emails')
+        .update(updateData)
+        .eq('id', emailId)
+        .select()
+        .single();
+      updatedEmail = supabaseUpdatedEmail;
+    }
+
+    res.json({
+      success: true,
+      message: 'Creator reply simulated successfully',
+      data: {
+        email: updatedEmail,
+        replyContent: defaultReplyContent,
+        creator: {
+          name: creator.channelName || creator.channel_name,
+          email: creator.contactEmail
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Simulate reply error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error simulating reply'
     });
   }
 });
@@ -842,6 +953,97 @@ router.get('/campaigns', authenticateToken, async (req, res) => {
         sources: { supabase: 0, local: localCampaigns.length }
       },
       message: 'Using local campaigns only due to error'
+    });
+  }
+});
+
+// @route   GET /api/outreach/analytics
+// @desc    Get detailed analytics for outreach campaigns
+// @access  Private
+router.get('/analytics', authenticateToken, async (req, res) => {
+  try {
+    if (!isSupabaseAvailable()) {
+      return res.json({
+        success: true,
+        data: {
+          overview: {
+            totalEmails: 0,
+            sentEmails: 0,
+            openedEmails: 0,
+            repliedEmails: 0,
+            failedEmails: 0,
+            openRate: 0,
+            replyRate: 0,
+            deliveryRate: 0
+          },
+          campaignPerformance: [],
+          timeline: []
+        }
+      });
+    }
+
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
+
+    if (!dbClient) {
+      return res.json({
+        success: true,
+        data: {
+          overview: { totalEmails: 0, sentEmails: 0, openedEmails: 0, repliedEmails: 0, failedEmails: 0, openRate: 0, replyRate: 0, deliveryRate: 0 },
+          campaignPerformance: [],
+          timeline: []
+        }
+      });
+    }
+
+    const { data: emails, error } = await dbClient
+      .from('outreach_emails')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error('Error fetching analytics emails: ' + error.message);
+    }
+
+    // Merge with mock emails
+    const allEmails = [...(emails || [])];
+    for (const [emailId, mockEmail] of mockEmailsStore.entries()) {
+      const { _creator, _campaign, ...publicEmail } = mockEmail;
+      allEmails.push(publicEmail);
+    }
+
+    // Calculate analytics
+    const totalEmails = allEmails.length;
+    const sentEmails = allEmails.filter(e => ['sent', 'opened', 'replied'].includes(e.status));
+    const openedEmails = allEmails.filter(e => ['opened', 'replied'].includes(e.status));
+    const repliedEmails = allEmails.filter(e => e.status === 'replied');
+    const failedEmails = allEmails.filter(e => e.status === 'failed');
+
+    const analytics = {
+      overview: {
+        totalEmails,
+        sentEmails: sentEmails.length,
+        openedEmails: openedEmails.length,
+        repliedEmails: repliedEmails.length,
+        failedEmails: failedEmails.length,
+        openRate: sentEmails.length > 0 ? (openedEmails.length / sentEmails.length * 100).toFixed(2) : 0,
+        replyRate: sentEmails.length > 0 ? (repliedEmails.length / sentEmails.length * 100).toFixed(2) : 0,
+        deliveryRate: totalEmails > 0 ? ((totalEmails - failedEmails.length) / totalEmails * 100).toFixed(2) : 0
+      },
+      campaignPerformance: [], // Can be extended later
+      timeline: [] // Can be extended later
+    };
+
+    res.json({
+      success: true,
+      data: analytics
+    });
+
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching analytics'
     });
   }
 });
