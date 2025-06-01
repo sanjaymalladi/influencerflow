@@ -10,6 +10,8 @@ const authRoutes = require('./routes/auth');
 const creatorRoutes = require('./routes/creators');
 const campaignRoutes = require('./routes/campaigns');
 const outreachRoutes = require('./routes/outreach');
+const socialbladeRoutes = require('./routes/socialblade');
+const automationRoutes = require('./routes/automation');
 
 // Initialize Express app
 const app = express();
@@ -55,6 +57,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/creators', creatorRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/outreach', outreachRoutes);
+app.use('/api/socialblade', socialbladeRoutes);
+app.use('/api/automation', automationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

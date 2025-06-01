@@ -1,57 +1,8 @@
 const express = require('express');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
+const { creatorsData } = require('../utils/dataStorage');
 
 const router = express.Router();
-
-// Mock creators database (replace with real database later)
-let savedCreators = [
-  {
-    id: '1',
-    channelName: 'Linus Tech Tips',
-    profileImageUrl: 'https://yt3.ggpht.com/ytc/AL5GRJWSZwKNK8wHLU8YJz8hLvxuPXGQR4Wh8KTrVSzR=s176-c-k-c0x00ffffff-no-rj',
-    youtubeChannelUrl: 'https://www.youtube.com/@LinusTechTips',
-    bio: 'Leading technology channel focusing on PC hardware reviews, builds, and tech news.',
-    subscriberCount: '15.2M',
-    viewCount: '2.8B',
-    videoCount: '5234',
-    matchPercentage: 95,
-    categories: ['Technology', 'Hardware Reviews', 'PC Building', 'Tech News'],
-    typicalViews: '1.8M',
-    engagementRate: '3.4%',
-    dataSource: 'Hybrid (YouTube primary)',
-    createdAt: new Date().toISOString(),
-    addedBy: '1'
-  },
-  {
-    id: '2',
-    channelName: 'Marques Brownlee',
-    profileImageUrl: 'https://yt3.ggpht.com/ytc/AL5GRJWSZwKNK8wHLU8YJz8hLvxuPXGQR4Wh8KTrVSzR=s176-c-k-c0x00ffffff-no-rj',
-    youtubeChannelUrl: 'https://www.youtube.com/@mkbhd',
-    bio: 'Tech reviews and commentary on the latest consumer technology.',
-    subscriberCount: '18.1M',
-    viewCount: '3.2B',
-    videoCount: '1892',
-    matchPercentage: 92,
-    categories: ['Technology', 'Reviews', 'Mobile Tech', 'Consumer Electronics'],
-    typicalViews: '2.1M',
-    engagementRate: '4.2%',
-    dataSource: 'Hybrid (YouTube primary)',
-    createdAt: new Date().toISOString(),
-    addedBy: '1'
-  }
-];
-
-let creatorLists = [
-  {
-    id: '1',
-    name: 'Tech Reviewers Campaign',
-    description: 'Top tech reviewers for upcoming product launch',
-    creatorIds: ['1', '2'],
-    userId: '1',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
 
 // @route   GET /api/creators/search
 // @desc    Search creators (integrates with frontend Gemini search)
@@ -115,7 +66,8 @@ router.post('/', authenticateToken, (req, res) => {
     }
 
     // Check if creator already exists
-    const existingCreator = savedCreators.find(
+    const existingCreators = creatorsData.getAll();
+    const existingCreator = existingCreators.find(
       creator => creator.channelName.toLowerCase() === channelName.toLowerCase() ||
                  (youtubeChannelUrl && creator.youtubeChannelUrl === youtubeChannelUrl)
     );
@@ -129,8 +81,7 @@ router.post('/', authenticateToken, (req, res) => {
     }
 
     // Create new creator
-    const newCreator = {
-      id: (savedCreators.length + 1).toString(),
+    const creatorData = {
       channelName,
       profileImageUrl: profileImageUrl || null,
       youtubeChannelUrl: youtubeChannelUrl || null,
@@ -149,7 +100,7 @@ router.post('/', authenticateToken, (req, res) => {
       addedBy: req.user.id
     };
 
-    savedCreators.push(newCreator);
+    const newCreator = creatorsData.add(creatorData);
 
     res.status(201).json({
       success: true,
@@ -173,7 +124,7 @@ router.get('/', authenticateToken, (req, res) => {
   try {
     const { page = 1, limit = 20, category, platform, search } = req.query;
     
-    let filteredCreators = savedCreators;
+    let filteredCreators = creatorsData.getAll();
 
     // Filter by category
     if (category) {
@@ -234,7 +185,7 @@ router.get('/', authenticateToken, (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, (req, res) => {
   try {
-    const creator = savedCreators.find(c => c.id === req.params.id);
+    const creator = creatorsData.findById(req.params.id);
 
     if (!creator) {
       return res.status(404).json({
@@ -262,9 +213,9 @@ router.get('/:id', authenticateToken, (req, res) => {
 // @access  Private
 router.put('/:id', authenticateToken, (req, res) => {
   try {
-    const creatorIndex = savedCreators.findIndex(c => c.id === req.params.id);
+    const creator = creatorsData.findById(req.params.id);
 
-    if (creatorIndex === -1) {
+    if (!creator) {
       return res.status(404).json({
         success: false,
         message: 'Creator not found'
@@ -272,7 +223,10 @@ router.put('/:id', authenticateToken, (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['bio', 'categories', 'notes'];
+    const allowedUpdates = [
+      'bio', 'categories', 'notes', 'subscriberCount', 'engagementRate', 
+      'recentGrowth', 'videoCount', 'dataSource', 'typicalViews', 'viewCount'
+    ];
     const updates = {};
 
     allowedUpdates.forEach(field => {
@@ -282,17 +236,18 @@ router.put('/:id', authenticateToken, (req, res) => {
     });
 
     // Add notes field if it doesn't exist
-    if (!savedCreators[creatorIndex].notes) {
-      savedCreators[creatorIndex].notes = '';
+    if (!creator.notes) {
+      updates.notes = '';
     }
 
-    Object.assign(savedCreators[creatorIndex], updates);
-    savedCreators[creatorIndex].updatedAt = new Date().toISOString();
+    updates.updatedAt = new Date().toISOString();
+
+    const updatedCreator = creatorsData.update(req.params.id, updates);
 
     res.json({
       success: true,
       message: 'Creator updated successfully',
-      data: { creator: savedCreators[creatorIndex] }
+      data: { creator: updatedCreator }
     });
 
   } catch (error) {
@@ -309,21 +264,28 @@ router.put('/:id', authenticateToken, (req, res) => {
 // @access  Private
 router.delete('/:id', authenticateToken, (req, res) => {
   try {
-    const creatorIndex = savedCreators.findIndex(c => c.id === req.params.id);
+    const creator = creatorsData.findById(req.params.id);
 
-    if (creatorIndex === -1) {
+    if (!creator) {
       return res.status(404).json({
         success: false,
         message: 'Creator not found'
       });
     }
 
-    savedCreators.splice(creatorIndex, 1);
+    const deleted = creatorsData.delete(req.params.id);
 
-    res.json({
-      success: true,
-      message: 'Creator deleted successfully'
-    });
+    if (deleted) {
+      res.json({
+        success: true,
+        message: 'Creator deleted successfully'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete creator'
+      });
+    }
 
   } catch (error) {
     console.error('Delete creator error:', error);
@@ -385,7 +347,7 @@ router.get('/lists', authenticateToken, (req, res) => {
     const listsWithCreators = userLists.map(list => ({
       ...list,
       creators: list.creatorIds.map(id => 
-        savedCreators.find(creator => creator.id === id)
+        creatorsData.findById(id)
       ).filter(Boolean)
     }));
 

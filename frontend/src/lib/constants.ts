@@ -2,7 +2,7 @@ export const GEMINI_MODEL_NAME = "gemini-1.5-flash-latest";
 export const DEFAULT_ERROR_MESSAGE = "An unexpected error occurred while searching for creators.";
 
 // Environment variables
-export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyAb5yjQ_xP56PQLwIJ9mDPK7X9V13U3LNc';
 export const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
 // YouTube API constants

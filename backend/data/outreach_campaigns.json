@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Tech Reviewer Outreach Q1",
+    "subject": "Partnership Opportunity - Tech Product Launch",
+    "message": "Hi {{creatorName}},\n\nI hope this email finds you well! My name is {{senderName}} from {{companyName}}.\n\nWe'd love to discuss a potential partnership for our upcoming product launch.\n\nBest regards,\n{{senderName}}",
+    "status": "active",
+    "createdBy": "1",
+    "targetCreators": [
+      "1",
+      "2"
+    ],
+    "sentCount": 2,
+    "repliedCount": 1,
+    "createdAt": "2025-05-31T09:07:34.533Z",
+    "updatedAt": "2025-05-31T09:07:34.533Z",
+    "id": "1"
+  }
+]

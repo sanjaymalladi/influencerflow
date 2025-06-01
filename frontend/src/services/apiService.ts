@@ -99,10 +99,33 @@ export interface OutreachEmail {
   creatorId: string;
   subject: string;
   body: string;
-  status: 'draft' | 'sent' | 'opened' | 'replied';
+  status: 'draft' | 'sent' | 'opened' | 'replied' | 'failed';
   sentAt?: string;
   openedAt?: string;
   repliedAt?: string;
+  messageId?: string;
+  provider?: string;
+  recipientEmail?: string;
+  deliveryStatus?: string;
+  errorMessage?: string;
+  notes?: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt?: string;
+  creator?: {
+    id: string;
+    name: string;
+    email: string;
+    platform: string;
+    followers: number;
+    categories: string[];
+    avatar?: string;
+  };
+  campaign?: {
+    id: string;
+    name: string;
+    budget?: number;
+  };
 }
 
 export interface OutreachStats {
@@ -231,6 +254,12 @@ export const campaignsAPI = {
     return response.data.data.campaign;
   },
 
+  updateCampaignStatus: async (id: string, status: string): Promise<Campaign> => {
+    const response: AxiosResponse<ApiResponse<{ campaign: Campaign }>> = 
+      await api.put(`/campaigns/${id}/status`, { status });
+    return response.data.data.campaign;
+  },
+
   deleteCampaign: async (id: string): Promise<void> => {
     await api.delete(`/campaigns/${id}`);
   },
@@ -253,32 +282,155 @@ export const outreachAPI = {
     return response.data.data;
   },
 
+  getEmailDetails: async (emailId: string): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.get(`/outreach/emails/${emailId}`);
+    return response.data.data;
+  },
+
   createEmail: async (emailData: {
     campaignId: string;
     creatorId: string;
     subject: string;
     body: string;
   }): Promise<OutreachEmail> => {
-    const response: AxiosResponse<ApiResponse<{ email: OutreachEmail }>> = 
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
       await api.post('/outreach/emails', emailData);
-    return response.data.data.email;
+    return response.data.data;
   },
 
-  sendEmail: async (emailId: string): Promise<void> => {
-    await api.post(`/outreach/emails/${emailId}/send`);
+  sendEmail: async (emailId: string): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.put(`/outreach/emails/${emailId}/send`);
+    return response.data.data;
+  },
+
+  updateEmailStatus: async (emailId: string, statusData: {
+    status?: string;
+    openedAt?: string;
+    repliedAt?: string;
+    notes?: string;
+  }): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.put(`/outreach/emails/${emailId}/status`, statusData);
+    return response.data.data;
+  },
+
+  simulateCreatorReply: async (emailId: string, replyContent?: string): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.post(`/outreach/emails/${emailId}/simulate-reply`, { replyContent });
+    return response.data.data;
+  },
+
+  processManualReply: async (emailId: string, replyData: {
+    replyContent: string;
+    fromEmail?: string;
+  }): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.post(`/outreach/emails/${emailId}/manual-reply`, replyData);
+    return response.data.data;
+  },
+
+  getPendingApprovals: async (): Promise<Array<{
+    id: string;
+    emailId: string;
+    replyContent: string;
+    analysis: {
+      sentiment: string;
+      intent: string;
+      requiresHumanAttention: boolean;
+      suggestedResponse?: string;
+      extractedInfo: any;
+    };
+    status: string;
+    priority: string;
+    createdAt: string;
+  }>> => {
+    const response: AxiosResponse<ApiResponse<{ approvals: any[] }>> = 
+      await api.get('/outreach/pending-approvals');
+    return response.data.data.approvals;
+  },
+
+  approveResponse: async (escalationId: string, responseText: string): Promise<OutreachEmail> => {
+    const response: AxiosResponse<ApiResponse<OutreachEmail>> = 
+      await api.post(`/outreach/approve-response/${escalationId}`, { responseText });
+    return response.data.data;
+  },
+
+  getPipeline: async (): Promise<{
+    pipeline: {
+      draft: OutreachEmail[];
+      sent: OutreachEmail[];
+      opened: OutreachEmail[];
+      replied: OutreachEmail[];
+      failed: OutreachEmail[];
+    };
+    metrics: {
+      totalEmails: number;
+      draftCount: number;
+      sentCount: number;
+      openedCount: number;
+      repliedCount: number;
+      failedCount: number;
+      openRate: string;
+      replyRate: string;
+      deliveryRate: string;
+    };
+  }> => {
+    const response: AxiosResponse<ApiResponse<any>> = 
+      await api.get('/outreach/pipeline');
+    return response.data.data;
+  },
+
+  getAnalytics: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    campaignId?: string;
+  }): Promise<{
+    overview: {
+      totalEmails: number;
+      sentEmails: number;
+      openedEmails: number;
+      repliedEmails: number;
+      failedEmails: number;
+      openRate: string;
+      replyRate: string;
+      deliveryRate: string;
+    };
+    campaignPerformance: Array<{
+      campaignName: string;
+      total: number;
+      sent: number;
+      opened: number;
+      replied: number;
+      failed: number;
+      openRate: string;
+      replyRate: string;
+      deliveryRate: string;
+    }>;
+    timeline: Array<{
+      date: string;
+      sent: number;
+      opened: number;
+      replied: number;
+    }>;
+  }> => {
+    const response: AxiosResponse<ApiResponse<any>> = 
+      await api.get('/outreach/analytics', { params });
+    return response.data.data;
   },
 
   getStats: async (campaignId?: string): Promise<OutreachStats> => {
     const params = campaignId ? { campaignId } : {};
-    const response: AxiosResponse<ApiResponse<{ stats: OutreachStats }>> = 
+    const response: AxiosResponse<ApiResponse<OutreachStats>> = 
       await api.get('/outreach/stats', { params });
-    return response.data.data.stats;
+    return response.data.data;
   },
 
   getTemplates: async (): Promise<Array<{ id: string; name: string; subject: string; body: string }>> => {
-    const response: AxiosResponse<ApiResponse<{ templates: Array<{ id: string; name: string; subject: string; body: string }> }>> = 
+    const response: AxiosResponse<ApiResponse<Array<{ id: string; name: string; subject: string; body: string }>>> = 
       await api.get('/outreach/templates');
-    return response.data.data.templates;
+    return response.data.data;
   }
 };
 

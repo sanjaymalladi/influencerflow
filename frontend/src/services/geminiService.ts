@@ -116,7 +116,7 @@ export const searchCreatorsWithGemini = async (query: string): Promise<GeminiCre
         "youtubeChannelUrl": "https://www.youtube.com/@LinusTechTips",
         "matchPercentage": 95,
         "followers": "15.2M",
-        "typicalViews": "1.8M", 
+        "typicalViews": "1.8M",
         "engagementRate": "3.4%",
         "categories": ["Technology", "Hardware Reviews", "PC Building", "Tech News"]
       }

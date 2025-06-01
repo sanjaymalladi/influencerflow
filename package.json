@@ -1,0 +1,41 @@
+{
+  "name": "influencerflow",
+  "version": "1.0.0",
+  "description": "AI-Powered Influencer Marketing Platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:dev": "cd frontend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "frontend:build": "cd frontend && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "clean": "cd backend && rm -rf node_modules && cd ../frontend && rm -rf node_modules && rm -rf node_modules",
+    "test": "cd backend && npm test && cd ../frontend && npm test"
+  },
+  "keywords": [
+    "influencer-marketing",
+    "ai",
+    "automation",
+    "email-outreach",
+    "creator-discovery",
+    "campaign-management"
+  ],
+  "author": "InfluencerFlow Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/influencerflow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/influencerflow/issues"
+  },
+  "homepage": "https://github.com/yourusername/influencerflow#readme"
+} 

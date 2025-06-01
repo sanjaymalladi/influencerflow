@@ -1,0 +1,212 @@
+[
+  {
+    "id": "1",
+    "channelName": "Linus Tech Tips",
+    "profileImageUrl": "https://yt3.ggpht.com/ytc/AL5GRJWSZwKNK8wHLU8YJz8hLvxuPXGQR4Wh8KTrVSzR=s176-c-k-c0x00ffffff-no-rj",
+    "youtubeChannelUrl": "https://www.youtube.com/@LinusTechTips",
+    "bio": "Leading technology channel focusing on PC hardware reviews, builds, and tech news.",
+    "subscriberCount": "15.2M",
+    "viewCount": "2.8B",
+    "videoCount": "5234",
+    "matchPercentage": 95,
+    "categories": [
+      "Technology",
+      "Hardware Reviews",
+      "PC Building",
+      "Tech News"
+    ],
+    "typicalViews": "1.8M",
+    "engagementRate": "3.4%",
+    "dataSource": "Hybrid (YouTube primary)",
+    "createdAt": "2025-05-31T06:35:06.481Z",
+    "addedBy": "1"
+  },
+  {
+    "id": "2",
+    "channelName": "Marques Brownlee",
+    "profileImageUrl": "https://yt3.ggpht.com/ytc/AL5GRJWSZwKNK8wHLU8YJz8hLvxuPXGQR4Wh8KTrVSzR=s176-c-k-c0x00ffffff-no-rj",
+    "youtubeChannelUrl": "https://www.youtube.com/@mkbhd",
+    "bio": "Tech reviews and commentary on the latest consumer technology.",
+    "subscriberCount": "18.1M",
+    "viewCount": "3.2B",
+    "videoCount": "1892",
+    "matchPercentage": 92,
+    "categories": [
+      "Technology",
+      "Reviews",
+      "Mobile Tech",
+      "Consumer Electronics"
+    ],
+    "typicalViews": "2.1M",
+    "engagementRate": "4.2%",
+    "dataSource": "Hybrid (YouTube primary)",
+    "createdAt": "2025-05-31T06:35:06.481Z",
+    "addedBy": "1"
+  },
+  {
+    "channelName": "Test Tech Creator",
+    "profileImageUrl": null,
+    "youtubeChannelUrl": "https://youtube.com/@testtechcreator",
+    "bio": "A test creator for API testing",
+    "subscriberCount": "500K",
+    "viewCount": null,
+    "videoCount": null,
+    "matchPercentage": null,
+    "categories": [
+      "Technology",
+      "Reviews"
+    ],
+    "typicalViews": "100K",
+    "engagementRate": "4.5%",
+    "dataSource": "Manual",
+    "geminiBio": null,
+    "popularVideos": [],
+    "createdAt": "2025-05-31T06:36:31.883Z",
+    "addedBy": "1",
+    "id": "3"
+  },
+  {
+    "channelName": "Flying With The Fearless",
+    "profileImageUrl": null,
+    "youtubeChannelUrl": "https://www.youtube.com/@FlyingWithTheFearless",
+    "bio": "A travel vlogging couple documenting their adventures around the world, focusing on budget travel and cultural experiences.  They often share tips and tricks for planning trips.",
+    "subscriberCount": "250K",
+    "viewCount": null,
+    "videoCount": null,
+    "matchPercentage": null,
+    "categories": [
+      "Travel Vlog",
+      "Budget Travel",
+      "Couple Travel",
+      "India Travel"
+    ],
+    "typicalViews": "50K",
+    "engagementRate": "6.2%",
+    "dataSource": "Gemini (YouTube lookup failed)",
+    "geminiBio": null,
+    "popularVideos": [],
+    "createdAt": "2025-05-31T06:48:28.895Z",
+    "addedBy": "1",
+    "id": "4"
+  },
+  {
+    "channelName": "Technical Guruji",
+    "profileImageUrl": null,
+    "youtubeChannelUrl": "https://www.youtube.com/channel/UCOhHO2ICt0ti9KAh-QHvttQ",
+    "bio": "नमस्कार दोस्तों, आपका बहुत बहुत स्वागत है हमारे चैनल \"Technical Guruji\" में, मैंने यह चैनल मेरे उन सभी दोस्तों के लिए बनाया है जो टेक्नोलॉजी के बारे में अपनी भाषा में जानना चाहते है, \"Technical Guruji\" चैनल में आपको रोज़ाना एक नयी वीडियो मिलेगी जहा मैं कोशिश करूँगा आपको मोबाइल और कंप्यूटर की दुनिया के बारे में कुछ जरुरी बातें बताने की| \nHello friends, Welcome to \"Technical Guruji\", I created this channel on 18th October 2015, my motive behind creating this channel is to make easy to understand, Tech Videos in Hindi, and I want each and every individual whoever is interested in technology to be able to understand it in the easiest possible way. I post two videos daily, on topics that cover latest technology and tech news. Please SUBSCRIBE to Technical Guruji, Thanks. जय हिन्द, वन्दे मातरम|\n\nFor Business enquiries: business@technicalguruji.in\nIGNORE e-mails sent to you from any non @technicalguruji.in e-mail addresses.\nI do not provide tech support over e-mail.",
+    "subscriberCount": "23.7M",
+    "viewCount": null,
+    "videoCount": null,
+    "matchPercentage": null,
+    "categories": [
+      "Technology",
+      "Mobile Reviews",
+      "Gadget Reviews",
+      "Hindi Tech"
+    ],
+    "typicalViews": "2M",
+    "engagementRate": "5.1%",
+    "dataSource": "Hybrid (YouTube primary)",
+    "geminiBio": null,
+    "popularVideos": [],
+    "createdAt": "2025-05-31T08:34:30.064Z",
+    "addedBy": "1",
+    "id": "5"
+  },
+  {
+    "channelName": "Beebom",
+    "profileImageUrl": null,
+    "youtubeChannelUrl": "https://www.youtube.com/channel/UCvpfclapgcuJo0M_x65pfRw",
+    "bio": "Beebom's official YouTube Channel.\n",
+    "subscriberCount": "3.4M",
+    "viewCount": null,
+    "videoCount": null,
+    "matchPercentage": null,
+    "categories": [
+      "Technology",
+      "Mobile Reviews",
+      "Software Tutorials",
+      "Tech News"
+    ],
+    "typicalViews": "500K",
+    "engagementRate": "3.8%",
+    "dataSource": "Hybrid (YouTube primary)",
+    "geminiBio": null,
+    "popularVideos": [],
+    "createdAt": "2025-05-31T08:34:31.949Z",
+    "addedBy": "1",
+    "id": "6"
+  },
+  {
+    "channelName": "Trakin Tech",
+    "profileImageUrl": null,
+    "youtubeChannelUrl": "https://www.youtube.com/channel/UCEPL07qzVsOcHd3sMUws65g",
+    "bio": "Trakin Tech is one of the fastest growing Youtube Channel Founded by Arun Prabhudesai that features daily videos on Smartphone & Gadget Reviews, Unboxing videos, breaking Tech Stories and Tech News.\n\nWe do not contact anyone from \"@gmail.com\" All our communications are from \"@trak.in\" email address. So please beware and do not entertain any Gmail addresses\n\nWe upload videos everyday!\n\nFor Business and Partnerships: business@trak.in\n\nThis Channel is owned, operated, and managed by, Armoks Media Private Limited.\n\nNote: Copying or Reproduction of content from this channel is strictly prohibited.\nYou can find Arun Prabhudesai on Twitter at https://twitter.com/8ap\n",
+    "subscriberCount": "15.1M",
+    "viewCount": null,
+    "videoCount": null,
+    "matchPercentage": null,
+    "categories": [
+      "Technology",
+      "Mobile Reviews",
+      "Laptop Reviews",
+      "Tech Comparisons"
+    ],
+    "typicalViews": "350K",
+    "engagementRate": "4.2%",
+    "dataSource": "Hybrid (YouTube primary)",
+    "geminiBio": null,
+    "popularVideos": [],
+    "createdAt": "2025-05-31T08:34:35.193Z",
+    "addedBy": "1",
+    "id": "7"
+  },
+  {
+    "id": "8",
+    "channelName": "Sanjay Malladi",
+    "profileImageUrl": "https://avatar.vercel.sh/sanjaymalladi?size=80&text=SM",
+    "youtubeChannelUrl": "https://www.youtube.com/@sanjaymalladi",
+    "bio": "Tech entrepreneur and content creator passionate about emerging technologies, AI/ML, and startup ecosystems. Creating content around tech innovations, coding tutorials, and entrepreneurship insights for aspiring developers and business minds.",
+    "subscriberCount": "2.8M",
+    "viewCount": "850M",
+    "videoCount": "1,247",
+    "matchPercentage": 98,
+    "categories": [
+      "Technology",
+      "AI/Machine Learning",
+      "Entrepreneurship",
+      "Coding Tutorials",
+      "Startup Advice",
+      "Tech Reviews"
+    ],
+    "typicalViews": "450K",
+    "engagementRate": "8.2%",
+    "recentGrowth": "+15.2% (30 days)",
+    "geminiBio": "Innovative tech content creator with expertise in AI, machine learning, and startup development. Known for in-depth technical tutorials and entrepreneurship guidance.",
+    "popularVideos": [
+      "Building an AI Startup from Scratch - Complete Guide",
+      "React vs Next.js - Which Should You Choose in 2024?",
+      "My $100M AI Startup Journey - Lessons Learned",
+      "Top 10 Programming Languages for 2024",
+      "How I Built 5 Successful SaaS Products"
+    ],
+    "socialPlatforms": [
+      "YouTube",
+      "LinkedIn",
+      "Twitter",
+      "Instagram"
+    ],
+    "location": "San Francisco, CA",
+    "contactEmail": "malladisanjay29@gmail.com",
+    "pricing": {
+      "videoReview": 8500,
+      "socialPost": 2200,
+      "unboxing": 5500,
+      "sponsored": 12000,
+      "consultation": 500
+    },
+    "createdAt": "2025-05-31T12:00:00.000Z",
+    "updatedAt": "2025-05-31T12:00:00.000Z",
+    "addedBy": "1"
+  }
+]

@@ -1,49 +1,8 @@
 const express = require('express');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const { campaignsData, campaignApplicationsData } = require('../utils/dataStorage');
 
 const router = express.Router();
-
-// Mock campaigns database
-let campaigns = [
-  {
-    id: '1',
-    name: 'Tech Product Launch Q1 2024',
-    description: 'Launch campaign for our new smartphone featuring top tech reviewers',
-    status: 'active',
-    budget: 50000,
-    spent: 12500,
-    startDate: '2024-01-15',
-    endDate: '2024-03-15',
-    goals: ['Brand Awareness', 'Product Reviews', 'Social Media Buzz'],
-    targetAudience: {
-      ageRange: '18-45',
-      interests: ['Technology', 'Gadgets', 'Reviews'],
-      platforms: ['YouTube', 'Instagram', 'TikTok']
-    },
-    deliverables: [
-      { type: 'Video Review', quantity: 5, price: 5000 },
-      { type: 'Social Media Posts', quantity: 10, price: 1000 },
-      { type: 'Unboxing Video', quantity: 3, price: 3000 }
-    ],
-    assignedCreators: ['1', '2'],
-    createdBy: '1',
-    createdAt: new Date('2024-01-01').toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-let campaignApplications = [
-  {
-    id: '1',
-    campaignId: '1',
-    creatorId: '2',
-    status: 'pending',
-    message: 'I would love to be part of this campaign. I have experience with tech reviews.',
-    proposedRate: 4500,
-    deliverables: ['Video Review', 'Social Media Posts'],
-    appliedAt: new Date().toISOString()
-  }
-];
 
 // @route   POST /api/campaigns
 // @desc    Create a new campaign
@@ -70,8 +29,7 @@ router.post('/', authenticateToken, authorizeRole('brand', 'agency', 'admin'), (
     }
 
     // Create new campaign
-    const newCampaign = {
-      id: (campaigns.length + 1).toString(),
+    const campaignData = {
       name,
       description,
       status: 'draft',
@@ -88,7 +46,7 @@ router.post('/', authenticateToken, authorizeRole('brand', 'agency', 'admin'), (
       updatedAt: new Date().toISOString()
     };
 
-    campaigns.push(newCampaign);
+    const newCampaign = campaignsData.add(campaignData);
 
     res.status(201).json({
       success: true,
@@ -112,15 +70,15 @@ router.get('/', authenticateToken, (req, res) => {
   try {
     const { status, page = 1, limit = 10 } = req.query;
     
-    let filteredCampaigns = campaigns;
+    let filteredCampaigns = campaignsData.getAll();
 
     // Filter by user role
     if (req.user.role === 'brand' || req.user.role === 'agency') {
       // Brands/Agencies see only their campaigns
-      filteredCampaigns = campaigns.filter(campaign => campaign.createdBy === req.user.id);
+      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.createdBy === req.user.id);
     } else if (req.user.role === 'creator') {
       // Creators see only public/active campaigns they can apply to
-      filteredCampaigns = campaigns.filter(campaign => 
+      filteredCampaigns = filteredCampaigns.filter(campaign => 
         campaign.status === 'active' || campaign.status === 'recruiting'
       );
     }
@@ -164,7 +122,7 @@ router.get('/', authenticateToken, (req, res) => {
 // @access  Private
 router.get('/:id', authenticateToken, (req, res) => {
   try {
-    const campaign = campaigns.find(c => c.id === req.params.id);
+    const campaign = campaignsData.findById(req.params.id);
 
     if (!campaign) {
       return res.status(404).json({
@@ -189,7 +147,7 @@ router.get('/:id', authenticateToken, (req, res) => {
     // Get applications for this campaign (if user is campaign owner)
     let applications = [];
     if (campaign.createdBy === req.user.id || req.user.role === 'admin') {
-      applications = campaignApplications.filter(app => app.campaignId === req.params.id);
+      applications = campaignApplicationsData.findByCampaignId(req.params.id);
     }
 
     res.json({
@@ -214,16 +172,14 @@ router.get('/:id', authenticateToken, (req, res) => {
 // @access  Private (Campaign owner only)
 router.put('/:id', authenticateToken, (req, res) => {
   try {
-    const campaignIndex = campaigns.findIndex(c => c.id === req.params.id);
+    const campaign = campaignsData.findById(req.params.id);
 
-    if (campaignIndex === -1) {
+    if (!campaign) {
       return res.status(404).json({
         success: false,
         message: 'Campaign not found'
       });
     }
-
-    const campaign = campaigns[campaignIndex];
 
     // Check permissions
     if (campaign.createdBy !== req.user.id && req.user.role !== 'admin') {
@@ -246,13 +202,13 @@ router.put('/:id', authenticateToken, (req, res) => {
       }
     });
 
-    Object.assign(campaigns[campaignIndex], updates);
-    campaigns[campaignIndex].updatedAt = new Date().toISOString();
+    updates.updatedAt = new Date().toISOString();
+    const updatedCampaign = campaignsData.update(req.params.id, updates);
 
     res.json({
       success: true,
       message: 'Campaign updated successfully',
-      data: { campaign: campaigns[campaignIndex] }
+      data: { campaign: updatedCampaign }
     });
 
   } catch (error) {
@@ -264,21 +220,19 @@ router.put('/:id', authenticateToken, (req, res) => {
   }
 });
 
-// @route   DELETE /api/campaigns/:id
-// @desc    Delete campaign
+// @route   PUT /api/campaigns/:id/status
+// @desc    Update campaign status
 // @access  Private (Campaign owner only)
-router.delete('/:id', authenticateToken, (req, res) => {
+router.put('/:id/status', authenticateToken, (req, res) => {
   try {
-    const campaignIndex = campaigns.findIndex(c => c.id === req.params.id);
+    const campaign = campaignsData.findById(req.params.id);
 
-    if (campaignIndex === -1) {
+    if (!campaign) {
       return res.status(404).json({
         success: false,
         message: 'Campaign not found'
       });
     }
-
-    const campaign = campaigns[campaignIndex];
 
     // Check permissions
     if (campaign.createdBy !== req.user.id && req.user.role !== 'admin') {
@@ -288,7 +242,60 @@ router.delete('/:id', authenticateToken, (req, res) => {
       });
     }
 
-    campaigns.splice(campaignIndex, 1);
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['draft', 'active', 'paused', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+      });
+    }
+
+    const updatedCampaign = campaignsData.update(req.params.id, {
+      status,
+      updatedAt: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: `Campaign status updated to ${status} successfully`,
+      data: { campaign: updatedCampaign }
+    });
+
+  } catch (error) {
+    console.error('Update campaign status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating campaign status'
+    });
+  }
+});
+
+// @route   DELETE /api/campaigns/:id
+// @desc    Delete campaign
+// @access  Private (Campaign owner only)
+router.delete('/:id', authenticateToken, (req, res) => {
+  try {
+    const campaign = campaignsData.findById(req.params.id);
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: 'Campaign not found'
+      });
+    }
+
+    // Check permissions
+    if (campaign.createdBy !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    campaignsData.delete(req.params.id);
 
     res.json({
       success: true,
@@ -309,7 +316,7 @@ router.delete('/:id', authenticateToken, (req, res) => {
 // @access  Private (Creator only)
 router.post('/:id/apply', authenticateToken, authorizeRole('creator'), (req, res) => {
   try {
-    const campaign = campaigns.find(c => c.id === req.params.id);
+    const campaign = campaignsData.findById(req.params.id);
 
     if (!campaign) {
       return res.status(404).json({
@@ -326,9 +333,8 @@ router.post('/:id/apply', authenticateToken, authorizeRole('creator'), (req, res
     }
 
     // Check if already applied
-    const existingApplication = campaignApplications.find(
-      app => app.campaignId === req.params.id && app.creatorId === req.user.id
-    );
+    const existingApplications = campaignApplicationsData.findByCampaignId(req.params.id);
+    const existingApplication = existingApplications.find(app => app.creatorId === req.user.id);
 
     if (existingApplication) {
       return res.status(409).json({
@@ -339,18 +345,18 @@ router.post('/:id/apply', authenticateToken, authorizeRole('creator'), (req, res
 
     const { message, proposedRate, deliverables } = req.body;
 
-    const newApplication = {
-      id: (campaignApplications.length + 1).toString(),
+    const applicationData = {
       campaignId: req.params.id,
       creatorId: req.user.id,
       status: 'pending',
       message: message || '',
       proposedRate: proposedRate || null,
       deliverables: deliverables || [],
-      appliedAt: new Date().toISOString()
+      appliedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
 
-    campaignApplications.push(newApplication);
+    const newApplication = campaignApplicationsData.add(applicationData);
 
     res.status(201).json({
       success: true,
@@ -372,7 +378,7 @@ router.post('/:id/apply', authenticateToken, authorizeRole('creator'), (req, res
 // @access  Private
 router.put('/:id/applications/:applicationId', authenticateToken, (req, res) => {
   try {
-    const campaign = campaigns.find(c => c.id === req.params.id);
+    const campaign = campaignsData.findById(req.params.id);
     
     if (!campaign) {
       return res.status(404).json({
@@ -389,11 +395,9 @@ router.put('/:id/applications/:applicationId', authenticateToken, (req, res) => 
       });
     }
 
-    const applicationIndex = campaignApplications.findIndex(
-      app => app.id === req.params.applicationId && app.campaignId === req.params.id
-    );
+    const application = campaignApplicationsData.findById(req.params.applicationId);
 
-    if (applicationIndex === -1) {
+    if (!application || application.campaignId !== req.params.id) {
       return res.status(404).json({
         success: false,
         message: 'Application not found'
@@ -409,23 +413,30 @@ router.put('/:id/applications/:applicationId', authenticateToken, (req, res) => 
       });
     }
 
-    campaignApplications[applicationIndex].status = status;
-    if (feedback) campaignApplications[applicationIndex].feedback = feedback;
-    campaignApplications[applicationIndex].updatedAt = new Date().toISOString();
+    const updates = {
+      status,
+      updatedAt: new Date().toISOString()
+    };
+    if (feedback) updates.feedback = feedback;
+
+    const updatedApplication = campaignApplicationsData.update(req.params.applicationId, updates);
 
     // If approved, add creator to campaign
     if (status === 'approved') {
-      const creatorId = campaignApplications[applicationIndex].creatorId;
+      const creatorId = updatedApplication.creatorId;
+      if (!campaign.assignedCreators) campaign.assignedCreators = [];
       if (!campaign.assignedCreators.includes(creatorId)) {
-        campaign.assignedCreators.push(creatorId);
-        campaign.updatedAt = new Date().toISOString();
+        campaignsData.update(req.params.id, {
+          assignedCreators: [...campaign.assignedCreators, creatorId],
+          updatedAt: new Date().toISOString()
+        });
       }
     }
 
     res.json({
       success: true,
       message: `Application ${status} successfully`,
-      data: { application: campaignApplications[applicationIndex] }
+      data: { application: updatedApplication }
     });
 
   } catch (error) {

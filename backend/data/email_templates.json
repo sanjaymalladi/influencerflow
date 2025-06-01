@@ -1,0 +1,26 @@
+[
+  {
+    "id": "tech-partnership",
+    "name": "Tech Partnership Template",
+    "subject": "Partnership Opportunity - {{campaignName}}",
+    "body": "Hi {{creatorName}},\n\nI hope this email finds you well! I've been following your content in the {{niche}} space and I'm really impressed by your work.\n\nI'm reaching out about an exciting collaboration opportunity with our {{campaignName}} campaign.\n\nCampaign Details:\n- {{campaignDescription}}\n- Budget: ${{budget}}\n- Goals: {{goals}}\n- Deliverables: {{deliverables}}\n\nWe believe your unique voice and engaged audience would be perfect for this campaign, and we're offering competitive compensation.\n\nWould you be interested in learning more about this partnership opportunity?\n\nBest regards,\n{{senderName}}",
+    "createdBy": "system",
+    "createdAt": "2025-05-31T09:07:34.521Z"
+  },
+  {
+    "id": "lifestyle-collab",
+    "name": "Lifestyle Collaboration",
+    "subject": "Exciting Collaboration Opportunity - {{campaignName}}",
+    "body": "Hello {{creatorName}},\n\nYour content resonates so well with our brand values! We'd love to explore a partnership opportunity.\n\nAbout our campaign:\n{{campaignDescription}}\n\nWe're offering:\n{{deliverables}}\n\nLet's chat about how we can work together!\n\nBest,\n{{senderName}}",
+    "createdBy": "system",
+    "createdAt": "2025-05-31T09:07:34.521Z"
+    },
+    {
+      "id": "personalized-outreach",
+      "name": "Personalized Outreach Template",
+      "subject": "Partnership Opportunity: {{campaignName}} - {{creatorName}}",
+      "body": "Hi {{creatorName}},\n\nI hope this message finds you well! I've been following your incredible content in the {{niche}} space and I'm genuinely impressed by your {{followers}} engaged community.\n\nI'm reaching out about an exciting collaboration opportunity with our {{campaignName}} campaign.\n\nWhy we think you're perfect for this:\n- Your expertise in {{niche}} aligns perfectly with our brand\n- Your {{platform}} content style matches our campaign vision\n- Your engaged audience of {{followers}} fits our target demographic\n\nCampaign Overview:\n- {{campaignDescription}}\n- Budget: ${{budget}}\n- Goals: {{goals}}\n- Deliverables: {{deliverables}}\n\nWe believe your unique voice and authentic approach would be perfect for this campaign. We're offering competitive compensation and full creative freedom within brand guidelines.\n\nWould you be interested in learning more about this partnership opportunity? I'd love to schedule a quick call to discuss the details.\n\nLooking forward to potentially working together!\n\nBest regards,\n{{senderName}}\n{{companyName}}",
+      "createdBy": "system",
+      "createdAt": "2025-05-31T12:00:00.000Z"
+  }
+]

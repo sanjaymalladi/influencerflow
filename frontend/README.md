@@ -1,73 +1,197 @@
-# Welcome to your Lovable project
+# InfluencerFlow Frontend
 
-## Project info
+Modern React/TypeScript frontend for the InfluencerFlow platform with AI-powered creator discovery and campaign management.
 
-**URL**: https://lovable.dev/projects/4b64e7c4-0ca7-4f51-a820-74412d9799ba
+## 🚀 Features
 
-## How can I edit this code?
+- **AI Creator Discovery**: Natural language search powered by Gemini AI
+- **Campaign Management**: Create and manage influencer marketing campaigns
+- **Outreach Automation**: Email templates and automated outreach
+- **AI Conversations**: Monitor and manage AI-handled creator conversations
+- **Analytics Dashboard**: Track performance and engagement metrics
+- **Modern UI**: Built with Tailwind CSS and responsive design
+- **Real-time Updates**: Live conversation tracking and notifications
 
-There are several ways of editing your application.
+## 🛠️ Technology Stack
 
-**Use Lovable**
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **React Router** for navigation
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
+- **Axios** for API communication
+- **React Query** for state management
+- **Sonner** for notifications
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4b64e7c4-0ca7-4f51-a820-74412d9799ba) and start prompting.
+## 📦 Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-**Use your preferred IDE**
+2. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Fill in your API keys and configuration in the `.env` file.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+   The frontend will start on http://localhost:5173
 
-Follow these steps:
+## 🔧 Configuration
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Environment Variables
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```env
+# API Configuration
+VITE_API_URL=http://localhost:5000
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Google API Configuration
+VITE_GOOGLE_API_KEY=your-google-api-key
+VITE_YOUTUBE_API_KEY=your-youtube-api-key
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Feature Flags
+VITE_ENABLE_AI_FEATURES=true
+VITE_ENABLE_ANALYTICS=true
 ```
 
-**Edit a file directly in GitHub**
+## 🎯 Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### 1. Creator Discovery
+- Navigate to "Creators" section
+- Use natural language search (e.g., "tech reviewers on YouTube")
+- Apply filters for platform, size, engagement, and region
+- Save creators to your database
+- Select multiple creators for bulk actions
 
-**Use GitHub Codespaces**
+### 2. Campaign Management
+- Go to "Campaigns" section
+- Create new campaigns with budget and goals
+- Select target creators
+- Set campaign parameters and deliverables
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 3. Outreach Management
+- Use "Outreach" section for email management
+- Create personalized email templates
+- Send bulk outreach emails
+- Track email performance (sent, opened, replied)
 
-## What technologies are used for this project?
+### 4. AI Conversations
+- Monitor "AI Conversations" tab
+- Review AI-handled responses
+- Approve or modify AI suggestions
+- Track conversation progress through stages
 
-This project is built with:
+### 5. Human Approvals
+- Check "AI Approvals" for pending decisions
+- Review creator negotiations
+- Approve or provide custom responses
+- Monitor escalated conversations
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📁 Project Structure
 
-## How can I deploy this project?
+```
+frontend/
+├── src/
+│   ├── components/       # Reusable UI components
+│   │   ├── auth/        # Authentication components
+│   │   ├── campaigns/   # Campaign management
+│   │   ├── creators/    # Creator discovery and management
+│   │   ├── outreach/    # Email and conversation management
+│   │   └── ui/          # Base UI components
+│   ├── pages/           # Page components
+│   ├── services/        # API services
+│   ├── contexts/        # React contexts (Auth)
+│   ├── hooks/           # Custom React hooks
+│   ├── types/           # TypeScript type definitions
+│   └── lib/             # Utility functions
+├── public/              # Static assets
+├── .env.example         # Environment variables template
+├── package.json         # Dependencies and scripts
+└── README.md           # This file
+```
 
-Simply open [Lovable](https://lovable.dev/projects/4b64e7c4-0ca7-4f51-a820-74412d9799ba) and click on Share -> Publish.
+## 🎨 UI Components
 
-## Can I connect a custom domain to my Lovable project?
+### Core Components
+- **CreatorCard**: Display creator information and statistics
+- **CampaignCard**: Show campaign details and status
+- **ConversationView**: AI conversation interface with message history
+- **EmailComposer**: Rich email template editor
+- **SearchFilters**: Advanced filtering for creator discovery
 
-Yes, you can!
+### AI Features
+- **ConversationStage**: Visual representation of conversation progress
+- **ApprovalInterface**: Human approval system for AI decisions
+- **NegotiationTracker**: Track terms and changes in negotiations
+- **ResponseSuggestions**: AI-generated response options
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🔒 Authentication
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+The frontend uses JWT-based authentication with the backend API:
+
+- **Login/Register**: User authentication forms
+- **Protected Routes**: Automatic redirection for unauthenticated users
+- **Role-based Access**: Different features for different user types
+- **Token Management**: Automatic token refresh and storage
+
+## 📱 Responsive Design
+
+The application is fully responsive and works on:
+- **Desktop**: Full feature set with multi-column layouts
+- **Tablet**: Optimized layouts for medium screens
+- **Mobile**: Touch-friendly interface with collapsible navigation
+
+## 🚀 Build and Deployment
+
+### Development
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint
+npm run type-check   # TypeScript type checking
+```
+
+### Production Build
+```bash
+npm run build
+```
+
+The build artifacts will be stored in the `dist/` directory.
+
+### Deployment Options
+- **Vercel**: Zero-config deployment
+- **Netlify**: Static site hosting
+- **AWS S3 + CloudFront**: Scalable hosting
+- **Docker**: Containerized deployment
+
+## 🧪 Testing
+
+```bash
+npm run test         # Run unit tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Generate coverage report
+```
+
+## 🔧 Development Tools
+
+- **Vite**: Fast build tool and dev server
+- **TypeScript**: Type safety and better developer experience
+- **ESLint**: Code linting and formatting
+- **Prettier**: Code formatting
+- **Tailwind CSS**: Utility-first CSS framework
+
+## 🤝 Contributing
+
+See the main [CONTRIBUTING.md](../CONTRIBUTING.md) file for contribution guidelines.
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "campaignId": "demo-campaign-1",
+    "creatorId": "2",
+    "status": "pending",
+    "message": "I would love to be part of this campaign. I have experience with tech reviews.",
+    "proposedRate": 4500,
+    "deliverables": [
+      "Video Review",
+      "Social Media Posts"
+    ],
+    "appliedAt": "2025-05-31T09:07:34.521Z",
+    "createdAt": "2025-05-31T09:07:34.521Z"
+  }
+]

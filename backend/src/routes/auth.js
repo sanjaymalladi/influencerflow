@@ -1,7 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const gmailService = require('../services/gmailService');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ let users = [
     email: 'demo@influencerflow.com',
     password: '$2a$12$unqrPixbdVQ4H5AkHgjl6u3X9Sg11/WbJi5CnmvgiNYcBEHa96Dnm', // "password123"
     name: 'Demo User',
-    role: 'brand',
+    role: 'admin',
     company: 'Demo Company',
     createdAt: new Date().toISOString()
   }
@@ -241,6 +242,79 @@ router.put('/profile', authenticateToken, (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error updating profile'
+    });
+  }
+});
+
+// @route   GET /api/auth/gmail
+// @desc    Get Gmail OAuth URL for authentication
+// @access  Private (Admin only)
+router.get('/gmail', authenticateToken, authorizeRole('admin'), (req, res) => {
+  try {
+    const authUrl = gmailService.getAuthUrl();
+    res.json({
+      success: true,
+      data: { authUrl },
+      message: 'Gmail OAuth URL generated'
+    });
+  } catch (error) {
+    console.error('Gmail OAuth URL error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating Gmail OAuth URL'
+    });
+  }
+});
+
+// @route   GET /api/auth/gmail/callback
+// @desc    Handle Gmail OAuth callback
+// @access  Public (OAuth callback)
+router.get('/gmail/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization code required'
+      });
+    }
+
+    const tokens = await gmailService.authenticate(code);
+    
+    res.json({
+      success: true,
+      message: '✅ Gmail authenticated successfully! Check server console for refresh token to add to .env',
+      data: { 
+        refreshToken: tokens.refresh_token,
+        status: gmailService.getStatus()
+      }
+    });
+  } catch (error) {
+    console.error('Gmail OAuth callback error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gmail authentication failed: ' + error.message
+    });
+  }
+});
+
+// @route   GET /api/auth/gmail/status
+// @desc    Get Gmail authentication status
+// @access  Private (Admin only)
+router.get('/gmail/status', authenticateToken, authorizeRole('admin'), (req, res) => {
+  try {
+    const status = gmailService.getStatus();
+    res.json({
+      success: true,
+      data: status,
+      message: 'Gmail status retrieved'
+    });
+  } catch (error) {
+    console.error('Gmail status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting Gmail status'
     });
   }
 });

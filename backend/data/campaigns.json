@@ -1,0 +1,89 @@
+[
+  {
+    "id": "demo-campaign-1",
+    "name": "Tech Product Launch Q1 2024",
+    "description": "Launch campaign for our new smartphone featuring top tech reviewers",
+    "budget": 50000,
+    "startDate": "2024-01-15",
+    "endDate": "2024-03-15",
+    "status": "active",
+    "goals": [
+      "Brand Awareness",
+      "Product Reviews",
+      "Social Media Buzz"
+    ],
+    "deliverables": [
+      {
+        "type": "Video Review",
+        "quantity": 5,
+        "price": 5000
+      },
+      {
+        "type": "Social Media Posts",
+        "quantity": 10,
+        "price": 1000
+      },
+      {
+        "type": "Unboxing Video",
+        "quantity": 3,
+        "price": 3000
+      }
+    ],
+    "createdBy": "1",
+    "createdAt": "2025-05-31T06:35:06.481Z"
+  },
+  {
+    "name": "Test Campaign API",
+    "description": "This is a test campaign created via API",
+    "status": "paused",
+    "budget": 10000,
+    "spent": 0,
+    "startDate": "2024-02-01",
+    "endDate": "2024-02-29",
+    "goals": [
+      "Brand Awareness",
+      "Product Reviews"
+    ],
+    "targetAudience": {},
+    "deliverables": [
+      {
+        "type": "Video Review",
+        "quantity": 2,
+        "price": 2000
+      },
+      {
+        "type": "Social Media Posts",
+        "quantity": 5,
+        "price": 500
+      }
+    ],
+    "assignedCreators": [],
+    "createdBy": "1",
+    "createdAt": "2025-05-31T06:36:31.906Z",
+    "updatedAt": "2025-05-31T10:34:40.412Z",
+    "id": "campaign-2"
+  },
+  {
+    "name": "Meta Ray Ban India Launch",
+    "description": "promote Meta Ray Ban India Launch",
+    "status": "active",
+    "budget": 10000,
+    "spent": 0,
+    "startDate": "2025-05-31",
+    "endDate": "2025-06-02",
+    "goals": [],
+    "targetAudience": {},
+    "deliverables": [
+      {
+        "type": "Unboxing video",
+        "quantity": 1,
+        "price": 10000
+      }
+    ],
+    "assignedCreators": [],
+    "createdBy": "1",
+    "createdAt": "2025-05-31T08:49:20.019Z",
+    "updatedAt": "2025-05-31T09:01:00.044Z",
+    "id": "campaign-3"
+  }
+]
