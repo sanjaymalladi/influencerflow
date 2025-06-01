@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: influencerflow-api
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: FRONTEND_URL
+        value: https://influencerflow.vercel.app
+      - key: SUPABASE_URL
+        value: https://udfseqeriqtshxttgdac.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkZnNlcWVyaXF0c2h4dHRnZGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3NTU1MjEsImV4cCI6MjA2NDMzMTUyMX0.NHNgL9WBcgOfjdmuP9HZ5SRUNl09bhIjjQUVm1FYY-k
+      - key: JWT_SECRET
+        value: influencerflow-super-secret-jwt-2024-production
+    healthCheckPath: /health 
