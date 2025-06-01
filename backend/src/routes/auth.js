@@ -273,86 +273,77 @@ router.get('/gmail', authenticateToken, authorizeRole('admin'), (req, res) => {
 // @desc    Callback URL for Gmail OAuth2 flow
 // @access  Public (but processes authenticated user context via state)
 router.get('/gmail/callback', async (req, res) => {
-  const queryCode = req.query.code;
-  const queryState = req.query.state;
-  const queryOAuthError = req.query.error;
+  const { code, state, error: oauthError } = req.query;
+  const userId = state; // Retrieve userId from state
 
-  const frontendRedirectBase = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-  if (queryOAuthError) {
-    console.error('Gmail OAuth callback error:', queryOAuthError);
-    return res.redirect(`${frontendRedirectBase}/settings?gmail_error=${encodeURIComponent(queryOAuthError)}`);
+  if (oauthError) {
+    console.error('Error from Google OAuth:', oauthError);
+    return res.status(400).redirect('/error?message=Gmail+authentication+failed'); // Redirect to an error page on your frontend
   }
 
-  if (!queryCode) {
-    console.error('No code received in Gmail OAuth callback');
-    return res.redirect(`${frontendRedirectBase}/settings?gmail_error=authorization_code_missing`);
+  if (!code || !userId) {
+    console.error('Missing code or state from Google OAuth callback');
+    return res.status(400).redirect('/error?message=Invalid+Gmail+callback');
   }
+
+  console.log(`Gmail OAuth callback received for user ID (from state): ${userId} with code: ${code}`)
 
   try {
-    let userId;
-    if (queryState) {
-      try {
-        const decodedState = JSON.parse(Buffer.from(queryState, 'base64url').toString('utf-8'));
-        userId = decodedState.userId;
-      } catch (e) {
-        console.error('Invalid state parameter:', e);
-        return res.redirect(`${frontendRedirectBase}/settings?gmail_error=invalid_state`);
+    const oAuth2Client = createOAuth2Client();
+    const { tokens } = await oAuth2Client.getToken(code);
+    console.log('Tokens received from Google:', { hasAccessToken: !!tokens.access_token, hasRefreshToken: !!tokens.refresh_token, expiry_date: tokens.expiry_date });
+
+    // Store tokens in Supabase users table
+    if (supabase) {
+      const updatePayload = {
+        gmail_access_token: tokens.access_token,
+        gmail_token_expiry: tokens.expiry_date,
+        gmail_last_sync: new Date().toISOString(),
+      };
+      if (tokens.refresh_token) { // Refresh token is not always sent, only store if received
+        updatePayload.gmail_refresh_token = tokens.refresh_token;
       }
-    }
 
-    if (!userId) {
-      console.error('User ID not found in state parameter.');
-      return res.redirect(`${frontendRedirectBase}/settings?gmail_error=user_id_missing_in_state`);
-    }
+      const { error: updateError } = await supabase
+        .from('users')
+        .update(updatePayload)
+        .eq('id', userId);
 
-    const oauth2Client = createOAuth2Client();
-    const { tokens } = await oauth2Client.getToken(queryCode);
-    // oauth2Client.setCredentials(tokens); // Not strictly needed here if we only store them
-
-    console.log(`Received Gmail tokens for user ${userId}:`, {
-      accessToken: !!tokens.access_token,
-      refreshToken: !!tokens.refresh_token,
-      expiresIn: tokens.expiry_date
-    });
-
-    const updateData = {
-      gmail_access_token: tokens.access_token,
-      // gmail_refresh_token: tokens.refresh_token, // Only update refresh token IF a new one is granted
-      gmail_token_expiry: tokens.expiry_date,
-      gmail_last_sync: new Date().toISOString()
-    };
-    if (tokens.refresh_token) { // Google sometimes doesn't send a new refresh token if one is already active
-        updateData.gmail_refresh_token = tokens.refresh_token;
-    }
-
-    // Mock DB update:
-    const userIndex = users.findIndex(u => u.id === userId);
-    let dbError = null;
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], ...updateData };
-      // Ensure existing refresh token is not overwritten with undefined if a new one isn't provided
-      if (!updateData.gmail_refresh_token && users[userIndex].gmail_refresh_token) {
-          updateData.gmail_refresh_token = users[userIndex].gmail_refresh_token;
+      if (updateError) {
+        console.error(`Supabase error updating tokens for user ${userId}:`, updateError);
+        // Even if DB update fails, log it but consider the connection made for now, or redirect to error
+        return res.status(500).redirect('/error?message=Failed+to+save+Gmail+connection');
       }
-      users[userIndex] = { ...users[userIndex], ...updateData }; 
-      console.log('Mock DB: Updated user with Gmail tokens:', users[userIndex].email);
+      console.log(`Successfully stored Gmail tokens in Supabase for user ${userId}`);
     } else {
-      dbError = { message: 'User not found in mock DB for token storage' };
+      // Fallback to mock users array IF NEEDED (but ideally should fail if Supabase isn't up)
+      console.warn('Supabase client not available. Storing tokens in mock user array (NOT RECOMMENDED FOR PRODUCTION)');
+      const userIndex = users.findIndex(u => u.id === userId);
+      if (userIndex !== -1) {
+        users[userIndex].gmail_access_token = tokens.access_token;
+        if (tokens.refresh_token) {
+            users[userIndex].gmail_refresh_token = tokens.refresh_token;
+        }
+        users[userIndex].gmail_token_expiry = tokens.expiry_date;
+        users[userIndex].gmail_last_sync = new Date().toISOString();
+        console.log(`Stored Gmail tokens in mock user array for user ${userId}`);
+      } else {
+        console.error(`User with ID ${userId} not found in mock array during Gmail callback.`);
+        return res.status(404).redirect('/error?message=User+not+found+after+Gmail+auth');
+      }
     }
 
-    if (dbError) {
-      console.error('Failed to store Gmail tokens in DB:', dbError);
-      return res.redirect(`${frontendRedirectBase}/settings?gmail_error=db_token_storage_failed`);
-    }
-
-    console.log(`Gmail tokens stored successfully for user ${userId}`);
-    res.redirect(`${frontendRedirectBase}/settings?gmail_success=true`);
+    // Redirect to a success page on your frontend
+    // Example: res.redirect('http://localhost:3000/dashboard?gmail_connected=true');
+    res.redirect('/gmail-success'); // Simple success page for now
 
   } catch (error) {
-    console.error('Error exchanging Gmail code for tokens or storing them:', error.response ? error.response.data : error);
-    const errorMessage = error.message || 'token_exchange_failed';
-    res.redirect(`${frontendRedirectBase}/settings?gmail_error=${encodeURIComponent(errorMessage)}`);
+    console.error('Error exchanging code for tokens or updating DB:', error.message);
+    // Check if error is from Google (e.g. oAuth2Client.getToken)
+    if (error.response && error.response.data) {
+        console.error('Google API Error Details:', error.response.data);
+    }
+    res.status(500).redirect('/error?message=Error+processing+Gmail+authentication');
   }
 });
 
@@ -360,47 +351,75 @@ router.get('/gmail/callback', async (req, res) => {
 // @desc    Disconnect Gmail and remove tokens
 // @access  Private
 router.post('/gmail/disconnect', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  console.log(`Attempting to disconnect Gmail for user ${userId}`);
+
   try {
-    const userId = req.user.id;
-
-    // Mock DB fetch & update:
-    const userIndex = users.findIndex(u => u.id === userId);
-    let dbError = null;
-
-    if (userIndex === -1) {
-        return res.status(404).json({ success: false, message: 'User not found.' });
+    let userTokens = null;
+    // Fetch current refresh token from Supabase to attempt revocation
+    if (supabase) {
+        const { data: user, error: fetchError } = await supabase
+            .from('users')
+            .select('gmail_refresh_token')
+            .eq('id', userId)
+            .single();
+        if (fetchError) {
+            console.error('Error fetching user refresh token for disconnect:', fetchError.message);
+            // Proceed to clear tokens even if fetch fails
+        } else if (user && user.gmail_refresh_token) {
+            userTokens = { refresh_token: user.gmail_refresh_token };
+        }
     }
-    const user = users[userIndex];
 
-    if (user.gmail_refresh_token) {
+    if (userTokens && userTokens.refresh_token) {
+      const oAuth2Client = createOAuth2Client();
+      oAuth2Client.setCredentials(userTokens); // Only refresh token is needed for revocation
       try {
-        const oauth2Client = createOAuth2Client();
-        // It's important to set the credentials on the client IF you have an access token that can be used to make the revoke call
-        // However, revokeToken typically only needs the token itself (refresh or access).
-        // For refresh token revocation, often it's just the token string.
-        // The googleapis library might handle this a bit differently, let's assume revokeToken(string) is what's needed.
-        await oauth2Client.revokeToken(user.gmail_refresh_token);
-        console.log(`Gmail token revoked successfully for user ${userId}`);
+        await oAuth2Client.revokeToken(userTokens.refresh_token);
+        console.log(`Successfully revoked Gmail token for user ${userId}`);
       } catch (revokeError) {
-        console.warn('Failed to revoke Gmail token (it might have been already invalid or expired):', revokeError.message);
-        // Continue to clear tokens from DB even if revocation fails
+        console.error(`Failed to revoke Gmail token for user ${userId}:`, revokeError.message);
+        // Don't block clearing tokens in DB if revocation fails
       }
     }
 
-    // Clear tokens from the mock DB
-    users[userIndex].gmail_access_token = null;
-    users[userIndex].gmail_refresh_token = null;
-    users[userIndex].gmail_token_expiry = null;
-    users[userIndex].gmail_last_sync = null;
-    console.log('Mock DB: Cleared Gmail tokens for user:', users[userIndex].email);
-    
-    // In real app, update Supabase here to set fields to null
+    // Clear Gmail tokens from Supabase users table
+    if (supabase) {
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          gmail_access_token: null,
+          gmail_refresh_token: null,
+          gmail_token_expiry: null,
+          gmail_last_sync: null
+        })
+        .eq('id', userId);
 
-    res.json({ success: true, message: 'Gmail disconnected successfully.' });
+      if (updateError) {
+        console.error(`Supabase error clearing tokens for user ${userId}:`, updateError);
+        return res.status(500).json({ success: false, message: 'Error clearing Gmail connection details.' });
+      }
+      console.log(`Successfully cleared Gmail tokens in Supabase for user ${userId}`);
+    } else {
+        console.warn('Supabase client not available. Clearing tokens from mock user array (NOT RECOMMENDED FOR PRODUCTION)');
+        const userIndex = users.findIndex(u => u.id === userId);
+        if (userIndex !== -1) {
+            users[userIndex].gmail_access_token = null;
+            users[userIndex].gmail_refresh_token = null;
+            users[userIndex].gmail_token_expiry = null;
+            users[userIndex].gmail_last_sync = null;
+            console.log(`Cleared Gmail tokens in mock user array for user ${userId}`);
+        } else {
+            console.error(`User with ID ${userId} not found in mock array during Gmail disconnect.`);
+            // Still return success as there's nothing to clear
+        }
+    }
+
+    res.json({ success: true, message: 'Gmail account disconnected successfully.' });
 
   } catch (error) {
-    console.error('Error disconnecting Gmail:', error);
-    res.status(500).json({ success: false, message: 'Server error disconnecting Gmail.' });
+    console.error('Error disconnecting Gmail account:', error.message);
+    res.status(500).json({ success: false, message: 'Server error disconnecting Gmail account' });
   }
 });
 
@@ -439,26 +458,23 @@ const GMAIL_SCOPES = [
 // @access  Private (User must be logged in)
 router.get('/gmail/connect', authenticateToken, (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // Get userId from authenticated session
     if (!userId) {
-      return res.status(400).json({ success: false, message: 'User ID not found in token.'});
+      return res.status(400).json({ success: false, message: 'User ID not found in token.' });
     }
 
-    const oauth2Client = createOAuth2Client(); 
-
-    const authUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline', 
-      scope: GMAIL_SCOPES,
-      prompt: 'consent', 
-      state: Buffer.from(JSON.stringify({ userId })).toString('base64url') 
+    const oAuth2Client = createOAuth2Client();
+    const authUrl = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent', // Important to get a refresh token every time
+      scope: ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.send'],
+      state: userId, // Pass userId in state to link tokens on callback
     });
-
-    console.log(`Redirecting user ${userId} to Gmail auth URL: ${authUrl}`);
+    console.log('Generated Gmail Auth URL:', authUrl);
     res.redirect(authUrl);
-
   } catch (error) {
-    console.error('Error initiating Gmail OAuth:', error);
-    res.status(500).json({ success: false, message: 'Failed to initiate Gmail connection.' });
+    console.error('Error initiating Gmail auth:', error);
+    res.status(500).json({ success: false, message: 'Error initiating Gmail authentication' });
   }
 });
 

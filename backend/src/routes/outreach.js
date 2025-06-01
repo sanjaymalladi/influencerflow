@@ -2,6 +2,8 @@ const express = require('express');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const { supabase, supabaseAdmin } = require('../config/supabase');
 const emailService = require('../services/emailService');
+const newGmailService = require('../services/gmailService');
+const { getSupabaseUserId, getDbClient, isSupabaseAvailable, findCreatorById, findCampaignById } = require('../utils/outreachHelpers');
 
 const router = express.Router();
 
@@ -44,123 +46,74 @@ router.get('/debug', (req, res) => {
   });
 });
 
-// Helper function to get the appropriate database client
-const getDbClient = (userId) => {
-  const isDemoUser = userId === '550e8400-e29b-41d4-a716-446655440000' || userId === '1';
-  return isDemoUser && supabaseAdmin ? supabaseAdmin : supabase;
+// Placeholder function to get user's Gmail tokens from Supabase
+const getUserGmailTokens = async (userId, dbClient) => {
+  if (!userId || !dbClient) {
+    console.error('getUserGmailTokens: Missing userId or dbClient');
+    return null;
+  }
+  try {
+    console.log(`getUserGmailTokens: Fetching Gmail tokens for user ${userId}`);
+    const { data: user, error } = await dbClient
+      .from('users')
+      .select('gmail_access_token, gmail_refresh_token, gmail_token_expiry')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error(`getUserGmailTokens: Error fetching tokens for user ${userId}:`, error.message);
+      return null;
+    }
+
+    if (!user || !user.gmail_access_token) {
+      console.log(`getUserGmailTokens: No Gmail tokens found for user ${userId}`);
+      return null;
+    }
+
+    console.log(`getUserGmailTokens: Successfully fetched tokens for user ${userId}`);
+    return {
+      access_token: user.gmail_access_token,
+      refresh_token: user.gmail_refresh_token,
+      expiry_date: user.gmail_token_expiry,
+    };
+  } catch (err) {
+    console.error(`getUserGmailTokens: Exception for user ${userId}:`, err.message);
+    return null;
+  }
 };
 
-// Helper function to check if Supabase is available
-const isSupabaseAvailable = () => {
-  return supabase !== null || supabaseAdmin !== null;
-};
+// Placeholder function to update user's Gmail tokens in Supabase
+// YOU MUST IMPLEMENT THIS PROPERLY
+const updateUserGmailTokensInDb = async (userId, tokens, dbClient) => {
+  if (!userId || !tokens || !dbClient) {
+    console.error('updateUserGmailTokensInDb: Missing userId, tokens, or dbClient');
+    return;
+  }
+  try {
+    console.log(`updateUserGmailTokensInDb: Updating Gmail tokens for user ${userId}`);
+    const updatePayload = {
+      gmail_access_token: tokens.access_token,
+      gmail_token_expiry: tokens.expiry_date,
+      gmail_last_sync: new Date().toISOString(),
+    };
 
-// Helper function to find creator by ID from both sources
-const findCreatorById = async (creatorId, userId) => {
-  console.log(`🔍 Finding creator with ID: "${creatorId}"`);
-  
-  // First try Supabase if available and ID looks like UUID
-  if (isSupabaseAvailable() && (creatorId.includes('-') && creatorId.length > 30)) {
-    try {
-      const dbClient = getDbClient(userId);
-      const { data: creator, error } = await dbClient
-        .from('creators')
-        .select('*')
-        .eq('id', creatorId)
-        .single();
-      
-      if (!error && creator) {
-        console.log(`✅ Found creator in Supabase: ${creator.channel_name || creator.channelName}`);
-        return creator;
-      }
-    } catch (error) {
-      console.log('⚠️ Supabase creator lookup failed:', error.message);
+    if (tokens.refresh_token) {
+      updatePayload.gmail_refresh_token = tokens.refresh_token;
     }
-  }
-  
-  // Fallback to local JSON data
-  if (localCreators.length > 0) {
-    // Try direct ID match first
-    let creator = localCreators.find(c => c.id === creatorId);
-    
-    if (!creator) {
-      // Try channel name based search for string IDs
-      const searchName = creatorId.split('-').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
-      
-      creator = localCreators.find(c => {
-        const creatorName = c.channel_name || c.channelName || '';
-        return creatorName.toLowerCase() === searchName.toLowerCase() ||
-               creatorName.toLowerCase().replace(/\s+/g, '-') === creatorId.toLowerCase();
-      });
-    }
-    
-    if (creator) {
-      console.log(`✅ Found creator in local JSON: ${creator.channel_name || creator.channelName}`);
-      return creator;
-    }
-  }
-  
-  // Final fallback - return first available creator
-  if (localCreators.length > 0) {
-    console.log(`🚨 Using fallback creator: ${localCreators[0].channel_name || localCreators[0].channelName}`);
-    return localCreators[0];
-  }
-  
-  return null;
-};
 
-// Helper function to find campaign by ID from both sources
-const findCampaignById = async (campaignId, userId) => {
-  console.log(`🔍 Finding campaign with ID: "${campaignId}"`);
-  
-  // First try Supabase if available and ID looks like UUID
-  if (isSupabaseAvailable() && (campaignId.includes('-') && campaignId.length > 30)) {
-    try {
-      const dbClient = getDbClient(userId);
-      const { data: campaign, error } = await dbClient
-        .from('campaigns')
-        .select('*')
-        .eq('id', campaignId)
-        .single();
-      
-      if (!error && campaign) {
-        console.log(`✅ Found campaign in Supabase: ${campaign.name}`);
-        return campaign;
-      }
-    } catch (error) {
-      console.log('⚠️ Supabase campaign lookup failed:', error.message);
-    }
-  }
-  
-  // Fallback to local JSON data
-  if (localCampaigns.length > 0) {
-    let campaign = localCampaigns.find(c => c.id === campaignId);
-    
-    if (campaign) {
-      console.log(`✅ Found campaign in local JSON: ${campaign.name}`);
-      return campaign;
-    }
-    
-    // Return first campaign as fallback
-    if (localCampaigns.length > 0) {
-      console.log(`🚨 Using fallback campaign: ${localCampaigns[0].name}`);
-      return localCampaigns[0];
-    }
-  }
-  
-  return null;
-};
+    const { error } = await dbClient
+      .from('users')
+      .update(updatePayload)
+      .eq('id', userId);
 
-// Helper function to map auth user ID to Supabase UUID
-const getSupabaseUserId = (authUserId) => {
-  if (authUserId === '550e8400-e29b-41d4-a716-446655440000' || 
-      authUserId === '1' || 
-      authUserId === 1) {
-    return '550e8400-e29b-41d4-a716-446655440000';
+    if (error) {
+      console.error(`updateUserGmailTokensInDb: Failed to update tokens for user ${userId}:`, error.message);
+    } else {
+      console.log(`updateUserGmailTokensInDb: Successfully updated tokens for user ${userId}`);
+    }
+  } catch (err) {
+    console.error(`updateUserGmailTokensInDb: Exception for user ${userId}:`, err.message);
   }
-  return authUserId;
 };
 
 // @route   GET /api/outreach/stats
@@ -415,254 +368,186 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
 });
 
 // @route   PUT /api/outreach/emails/:id/send
-// @desc    Send outreach email
+// @desc    Send outreach email, preferring user's Gmail if connected
 // @access  Private (Brand/Agency only)
 router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
     const emailId = req.params.id;
-    const supabaseUserId = getSupabaseUserId(req.user.id);
-    
-    console.log(`📧 Attempting to send email with ID: ${emailId}`);
+    const authUserId = req.user.id; // User ID from JWT token
+    const supabaseUserId = getSupabaseUserId(authUserId); // Potentially maps to a Supabase user ID if different
+    const dbClient = getDbClient(supabaseUserId); // Get Supabase client instance
+
+    console.log(`📧 Attempting to send email with ID: ${emailId} for user: ${authUserId}`);
     
     let email = null;
-    
-    // Check if this is a mock email (created with local data)
-    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
+    let isMockEmail = emailId.startsWith('email-') || emailId.startsWith('mock-');
+
+    if (isMockEmail) {
       console.log('📧 Detected mock email, retrieving from memory...');
-      
-      // Retrieve the stored mock email
       email = mockEmailsStore.get(emailId);
-
-    if (!email) {
+      if (!email) {
         console.log(`❌ Mock email ${emailId} not found in memory store`);
-        console.log(`📧 Available mock emails: ${Array.from(mockEmailsStore.keys()).join(', ')}`);
-      return res.status(404).json({
-        success: false,
-          message: 'Mock email not found in memory. Please recreate the email.'
-        });
+        return res.status(404).json({ success: false, message: 'Mock email not found. Please recreate it.' });
       }
-      
-      console.log(`📧 RETRIEVED EMAIL DEBUG - ID: ${emailId}`);
-      console.log(`📧 RETRIEVED EMAIL DEBUG - Subject: "${email.subject}"`);
-      console.log(`📧 RETRIEVED EMAIL DEBUG - Content: "${email.content?.substring(0, 100)}..."`);
-      console.log(`📧 RETRIEVED EMAIL DEBUG - Creator: ${email.creator_name} (${email.creator_id})`);
-      console.log(`📧 RETRIEVED EMAIL DEBUG - Stored creator: ${email._creator?.channelName || email._creator?.channel_name}`);
     } else {
-      // Try to get real email from Supabase
-      if (!isSupabaseAvailable()) {
-        return res.status(503).json({
-        success: false,
-          message: 'Database temporarily unavailable'
-        });
+      if (!isSupabaseAvailable() || !dbClient) {
+        return res.status(503).json({ success: false, message: 'Database service unavailable.' });
       }
-
-      const dbClient = getDbClient(supabaseUserId);
-      
-      if (!dbClient) {
-        return res.status(503).json({
-          success: false,
-          message: 'Database client not available'
-        });
-      }
-
-      // Get email from Supabase
       const { data: supabaseEmail, error: emailError } = await dbClient
         .from('outreach_emails')
-        .select('*')
+        .select('*, campaigns(*), creators(*)') // Fetch related campaign and creator
         .eq('id', emailId)
         .single();
-
       if (emailError || !supabaseEmail) {
-        return res.status(404).json({
-          success: false,
-          message: 'Email not found in database'
-        });
+        return res.status(404).json({ success: false, message: 'Email not found in database.' });
       }
-      
       email = supabaseEmail;
+      // If creator/campaign were joined, they are available as email.creators and email.campaigns
+      // If not joined directly, ensure findCreatorById and findCampaignById are called.
     }
 
     console.log(`📧 Found email: ${email.subject} for campaign ${email.campaign_id}`);
 
-    // For mock emails, use the stored creator data; for real emails, lookup from database
-    let creator;
-    if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
-      creator = email._creator;
-      console.log(`✅ Using stored creator data: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
-    } else {
-      // Use the enhanced creator lookup function for real emails
-      creator = await findCreatorById(email.creator_id, supabaseUserId);
-      
+    let creator = isMockEmail ? email._creator : (email.creators || await findCreatorById(email.creator_id, supabaseUserId));
     if (!creator) {
-      return res.status(404).json({
-        success: false,
-          message: 'Creator not found for this email'
-      });
+      return res.status(404).json({ success: false, message: 'Creator not found for this email.' });
+    }
+    console.log(`✅ Creator identified: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
+
+    const recipientEmail = creator.contact_email || `${(creator.channelName || creator.channel_name || 'default').toLowerCase().replace(/\\s+/g, '')}@example.com`;
+    const emailContentWithFooter = `${email.content}\n\n---\nThis email was sent via InfluencerFlow\nReference ID: ${emailId.toUpperCase()}`;
+
+    let emailResult = null;
+    let sentViaGmail = false;
+
+    // --- Try sending with newGmailService if user tokens are available ---
+    const userGmailTokens = await getUserGmailTokens(authUserId, dbClient);
+
+    if (userGmailTokens && userGmailTokens.access_token) {
+      console.log(`Attempting to send via user's connected Gmail for user ${authUserId}`);
+      try {
+        const onTokensRefreshedCallback = async (newTokens) => {
+          await updateUserGmailTokensInDb(authUserId, newTokens, dbClient);
+        };
+        
+        // Constructing the inReplyTo and threadId if this is a follow-up
+        // For an initial email, these would be null. This needs more advanced logic if we're sending replies via this same endpoint.
+        // For now, assuming initial send:
+        const inReplyToHeader = null; // Placeholder: determine if this is a reply based on conversation context
+        const existingThreadId = email.email_thread_id; // Get from outreach_emails if it was set by a previous send in this thread
+
+        emailResult = await newGmailService.sendEmail(
+          {
+            to: recipientEmail,
+            subject: email.subject,
+            body: email.content, // Send original content, not with footer if Gmail handles it. Or decide.
+            inReplyTo: inReplyToHeader,
+            threadId: existingThreadId 
+          },
+          { // Pass tokens in the structure expected by newGmailService
+            gmail_access_token: userGmailTokens.access_token,
+            gmail_refresh_token: userGmailTokens.refresh_token,
+            gmail_token_expiry: userGmailTokens.expiry_date
+          },
+          onTokensRefreshedCallback
+        );
+        
+        sentViaGmail = true;
+        console.log('✅ Email sent successfully via newGmailService (User\'s Gmail). Message ID:', emailResult.id, "Thread ID:", emailResult.threadId);
+      } catch (gmailError) {
+        console.error('❌ Failed to send via newGmailService (User\'s Gmail):', gmailError.message);
+        // Optionally, decide if you want to fallback to default emailer or just fail
+        if (gmailError.message.includes("User needs to re-authenticate")) {
+             return res.status(401).json({ success: false, message: "Gmail connection error: User needs to re-authenticate.", code: "GMAIL_AUTH_ERROR"});
+        }
+        // For other errors, we might fallback or return error
+        console.log('Falling back to default email service due to Gmail send error.');
+        // Fallthrough to legacy emailService
       }
-      
-      console.log(`✅ Creator found: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
     }
 
-    try {
-      // Extract email from creator data with multiple fallback strategies
-      let recipientEmail = null;
-      
-      // Strategy 1: Check for Sanjay specifically
-      const creatorName = creator.channelName || creator.channel_name || '';
-      if (creatorName.toLowerCase().includes('sanjay') || 
-          creator.id === 'sanjay-malladi' || 
-          creator.id === '1' ||
-          creatorName.toLowerCase().includes('malladi')) {
-        recipientEmail = 'sanjaymallladi12@gmail.com';
-        console.log(`📧 Using Sanjay's email: ${recipientEmail}`);
-      }
-      // Strategy 2: Direct contactEmail field
-      else if (creator.contactEmail) {
-        recipientEmail = creator.contactEmail;
-        console.log(`📧 Using contactEmail: ${recipientEmail}`);
-      }
-      // Strategy 3: Extract from bio (business emails or general emails)
-      else if (creator.bio) {
-        // Look for business emails first
-        let emailMatch = creator.bio.match(/business@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        if (!emailMatch) {
-          // Look for any email in bio
-          emailMatch = creator.bio.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-        }
-        if (emailMatch) {
-          recipientEmail = emailMatch[0];
-          console.log(`📧 Extracted from bio: ${recipientEmail}`);
-        }
-      }
-      
-      // Strategy 4: Generate from channel name
-      if (!recipientEmail) {
-        const channelName = creator.channelName || creator.channel_name || 'creator';
-        recipientEmail = `${channelName.toLowerCase().replace(/\s+/g, '')}@example.com`;
-        console.log(`📧 Generated email: ${recipientEmail}`);
-      }
-      
-      console.log(`📧 FINAL DEBUG - Creator: ${creator.channelName || creator.channel_name} (ID: ${creator.id})`);
-      console.log(`📧 FINAL DEBUG - Email will be sent to: ${recipientEmail}`);
-      console.log(`📧 FINAL DEBUG - Subject: ${email.subject}`);
-      console.log(`📧 FINAL DEBUG - Content length: ${email.content?.length || 0} characters`);
-      
-      // Add tracking footer to email content
-      const emailContentWithFooter = `${email.content}
-
----
-This email was sent via InfluencerFlow
-Reference ID: ${emailId.toUpperCase()}`;
-      
-      const emailResult = await emailService.sendEmail({
+    // --- Fallback to legacy emailService if newGmailService wasn't used or failed (and we decided to fallback) ---
+    if (!sentViaGmail) {
+      console.log('🥈 Sending via legacy emailService...');
+      emailResult = await emailService.sendEmail({ // This is the OLD service
         to: recipientEmail,
         subject: email.subject,
-        body: emailContentWithFooter,
+        body: emailContentWithFooter, // Old service might need footer
         from: process.env.DEFAULT_FROM_EMAIL || 'outreach@influencerflow.com',
         fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team',
-        // Add reference ID for tracking
         customEmailId: emailId
       });
+      console.log('✅ Email sent successfully via legacy emailService. Message ID:', emailResult.messageId);
+    }
 
-            // Update email status
-      const updateData = {
+    // --- Update database ---
+    const updateData = {
       status: 'sent',
-        sent_at: new Date().toISOString(),
-        external_id: emailResult.messageId,
-        provider: emailResult.provider,
-        creator_id: creator.id,
-        tracking_data: {
+      sent_at: new Date().toISOString(),
+      provider: sentViaGmail ? 'user_gmail' : (emailResult.provider || 'default_email_service'),
+      external_id: sentViaGmail ? emailResult.id : emailResult.messageId, // Gmail's message ID
+      email_thread_id: sentViaGmail ? emailResult.threadId : (email.email_thread_id || null), // Store Gmail's thread ID
+      // creator_id: creator.id, // Already part of email object, ensure it's correct
+      tracking_data: {
+        ...(email.tracking_data || {}), // Preserve existing tracking data
         recipientEmail: recipientEmail,
-        deliveryStatus: 'delivered',
-        emailId: emailResult.emailId,
-          messageId: emailResult.messageId,
-          creatorName: creator.channelName || creator.channel_name,
-          sentAt: new Date().toISOString()
-        }
-      };
-
-      let updatedEmail = null;
-      
-      // Only update in Supabase if it's a real email (not mock)
-      if (!emailId.startsWith('email-') && !emailId.startsWith('mock-') && isSupabaseAvailable()) {
-        const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
-          .from('outreach_emails')
-          .update(updateData)
-          .eq('id', emailId)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Error updating email status in Supabase:', updateError);
-        } else {
-          updatedEmail = supabaseUpdatedEmail;
-        }
+        deliveryStatus: 'delivered', // Assuming delivered, actual status might need webhooks
+        messageId: sentViaGmail ? emailResult.id : emailResult.messageId,
+        threadId: sentViaGmail ? emailResult.threadId : (email.email_thread_id || null),
+        sentAt: new Date().toISOString(),
+        sentMethod: sentViaGmail ? 'user_gmail' : 'legacy_service'
       }
-      
-      // For mock emails, update the memory store and return merged data
-      if (!updatedEmail) {
-        updatedEmail = { ...email, ...updateData };
-        
-        // Update the mock email in memory store
-        if (emailId.startsWith('email-') || emailId.startsWith('mock-')) {
-          mockEmailsStore.set(emailId, updatedEmail);
-          console.log(`📧 Updated mock email in memory store: ${emailId}`);
-        }
-      }
+    };
     
-      console.log(`✅ Email sent successfully to ${recipientEmail}`);
+    let updatedEmailInDb = null;
+    if (!isMockEmail && isSupabaseAvailable() && dbClient) {
+      const { data: supabaseUpdatedEmail, error: updateError } = await dbClient
+        .from('outreach_emails')
+        .update(updateData)
+        .eq('id', emailId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating email status in Supabase:', updateError);
+        // Don't let DB update failure hide a successful send. Log and continue.
+      } else {
+        updatedEmailInDb = supabaseUpdatedEmail;
+        console.log('📧 Email status updated in Supabase.');
+      }
+      
+      // Also update the conversation table with the thread ID if sent via Gmail
+      if (sentViaGmail && emailResult.threadId && email.conversation_id) {
+        const { error: convError } = await dbClient
+            .from('conversations')
+            .update({ email_thread_id: emailResult.threadId, last_message_at: new Date().toISOString() })
+            .eq('id', email.conversation_id);
+        if (convError) {
+            console.error('Error updating conversation with thread ID:', convError);
+        } else {
+            console.log('Conversation updated with Gmail thread ID:', emailResult.threadId);
+        }
+      }
+
+    } else if (isMockEmail) {
+      email = { ...email, ...updateData };
+      mockEmailsStore.set(emailId, email);
+      updatedEmailInDb = email;
+      console.log(`📧 Updated mock email in memory store: ${emailId}`);
+    }
 
     res.json({
       success: true,
-      message: 'Email sent successfully',
-      data: updatedEmail
+      message: `Email sent successfully via ${sentViaGmail ? "User's Gmail" : "default service"}.`,
+      data: updatedEmailInDb || { ...email, ...updateData } // Return the most updated version
     });
 
-    } catch (emailError) {
-      console.error('Email sending failed:', emailError);
-      
-      const updateData = {
-        status: 'failed',
-        sent_at: new Date().toISOString(),
-        bounce_reason: emailError.message,
-        tracking_data: {
-          deliveryStatus: 'failed',
-        errorMessage: emailError.message,
-          failedAt: new Date().toISOString()
-        }
-      };
-
-      let updatedEmail = null;
-      
-      // Only update in Supabase if it's a real email (not mock)
-      if (!emailId.startsWith('email-') && !emailId.startsWith('mock-') && isSupabaseAvailable()) {
-        const { data: supabaseUpdatedEmail } = await dbClient
-          .from('outreach_emails')
-          .update(updateData)
-          .eq('id', emailId)
-          .select()
-          .single();
-        
-        updatedEmail = supabaseUpdatedEmail;
-      }
-      
-      // For mock emails, just return the merged data
-      if (!updatedEmail) {
-        updatedEmail = { ...email, ...updateData };
-      }
-
-      res.status(500).json({
-        success: false,
-        message: `Failed to send email: ${emailError.message}`,
-        data: updatedEmail
-      });
-    }
-
   } catch (error) {
-    console.error('Send email error:', error);
+    console.error('Send email route error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error sending email'
+      message: 'Server error sending email: ' + error.message,
+      debug: { errorName: error.name, errorMessage: error.message }
     });
   }
 });
