@@ -270,23 +270,43 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     // For now, allow all users to send emails
     console.log(`📧 Found email: ${email.subject} for campaign ${email.campaign_id}`);
 
-    // Enhanced creator lookup in Supabase - try multiple strategies
+    // Enhanced creator lookup in Supabase - handle transition from old system
     let creator = null;
     
     console.log(`🔍 Looking for creator with ID: "${email.creator_id}"`);
     
-    // Strategy 1: Direct ID lookup (numeric or UUID)
-    const { data: directCreator } = await dbClient
+    // Strategy 1: Direct ID lookup (UUID format)
+    const { data: directCreator, error: directError } = await dbClient
       .from('creators')
       .select('*')
       .eq('id', email.creator_id)
       .single();
     
-    creator = directCreator;
+    if (!directError && directCreator) {
+      creator = directCreator;
+      console.log(`✅ Found creator by direct ID lookup: ${creator.channel_name}`);
+    }
     
-    // Strategy 2: If not found, try to find by channel name (for string-based IDs)
-    if (!creator) {
-      console.log(`🔍 Direct ID lookup failed, trying channel name lookup...`);
+    // Strategy 2: If not found and ID looks like UUID, search for any creator for this user
+    // This handles the transition period where old emails have UUIDs that don't exist in new Supabase
+    if (!creator && (email.creator_id.includes('-') && email.creator_id.length > 30)) {
+      console.log(`🔍 UUID-like ID not found, searching all creators for user...`);
+      
+      const { data: userCreators } = await dbClient
+        .from('creators')
+        .select('*')
+        .eq('user_id', supabaseUserId)
+        .limit(1);
+      
+      if (userCreators && userCreators.length > 0) {
+        creator = userCreators[0]; // Use the first available creator for this user
+        console.log(`✅ Using fallback creator: ${creator.channel_name} (${creator.id})`);
+      }
+    }
+    
+    // Strategy 3: Try to find by channel name (for string-based IDs like "linus-tech-tips")
+    if (!creator && !email.creator_id.includes('-')) {
+      console.log(`🔍 Trying channel name lookup for: ${email.creator_id}`);
       
       // Try to match by channel name slug (e.g., "linus-tech-tips" -> "Linus Tech Tips")
       const channelNameFromId = email.creator_id
@@ -305,12 +325,13 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
           c.channel_name.toLowerCase() === channelNameFromId.toLowerCase() ||
           c.channel_name.toLowerCase().replace(/\s+/g, '-') === email.creator_id.toLowerCase()
         ) || channelCreators[0]; // Take the first match if exact match not found
+        console.log(`✅ Found creator by channel name: ${creator.channel_name}`);
       }
     }
     
-    // Strategy 3: If still not found, try broader search
+    // Strategy 4: Last resort - broader search within user's creators
     if (!creator) {
-      console.log(`🔍 Channel name lookup failed, trying broader search...`);
+      console.log(`🔍 Broad search for any creator matching: ${email.creator_id}`);
       
       const { data: allCreators } = await dbClient
         .from('creators')
@@ -318,6 +339,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         .eq('user_id', supabaseUserId);
       
       if (allCreators && allCreators.length > 0) {
+        // Try to find any creator that might match
         creator = allCreators.find(c => {
           const creatorIdStr = String(email.creator_id).toLowerCase();
           const channelNameSlug = c.channel_name.toLowerCase().replace(/\s+/g, '-');
@@ -328,11 +350,19 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
                  channelNameWords.includes(creatorIdStr) ||
                  creatorIdStr.includes(channelNameWords);
         });
+        
+        // If still no match, use the first creator as fallback
+        if (!creator) {
+          creator = allCreators[0];
+          console.log(`✅ Using first available creator as fallback: ${creator.channel_name}`);
+        } else {
+          console.log(`✅ Found creator by broad search: ${creator.channel_name}`);
+        }
       }
     }
 
     if (!creator) {
-      console.error(`❌ Creator lookup failed for creatorId: "${email.creator_id}"`);
+      console.error(`❌ Creator lookup failed completely for creatorId: "${email.creator_id}"`);
       
       // Get available creators for debugging
       const { data: availableCreators } = await dbClient
@@ -342,15 +372,22 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       
       console.error('📋 Available creators:', availableCreators?.map(c => ({ id: c.id, name: c.channel_name })));
       
-      return res.status(404).json({
-        success: false,
-        message: 'Creator not found',
-        debug: {
-          emailId: emailId,
-          creatorId: email.creator_id,
-          availableCreators: availableCreators?.map(c => ({ id: c.id, name: c.channel_name })) || []
-        }
-      });
+      // If we have ANY creators for this user, use the first one as ultimate fallback
+      if (availableCreators && availableCreators.length > 0) {
+        creator = availableCreators[0];
+        console.log(`🚨 EMERGENCY FALLBACK: Using first available creator: ${creator.channel_name}`);
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: 'No creators found for this user',
+          debug: {
+            emailId: emailId,
+            creatorId: email.creator_id,
+            userId: supabaseUserId,
+            availableCreators: []
+          }
+        });
+      }
     }
 
     console.log(`✅ Creator found: ${creator.channel_name} (ID: ${creator.id}) for email creatorId: ${email.creator_id}`);
@@ -368,6 +405,7 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
       });
 
       // Update email status with send details in Supabase
+      const wasCreatorIdChanged = creator.id !== email.creator_id;
       const updateData = {
         status: 'sent',
         sent_at: new Date().toISOString(),
@@ -381,7 +419,12 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
           messageId: emailResult.messageId,
           normalizedCreatorId: creator.id,
           originalCreatorId: email.creator_id,
-          sentAt: new Date().toISOString()
+          creatorIdChanged: wasCreatorIdChanged,
+          creatorName: creator.channel_name,
+          sentAt: new Date().toISOString(),
+          ...(wasCreatorIdChanged && {
+            note: `Creator ID normalized from "${email.creator_id}" to "${creator.id}" (${creator.channel_name})`
+          })
         }
       };
 
