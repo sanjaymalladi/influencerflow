@@ -1,10 +1,26 @@
 const express = require('express');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
-const { outreachEmailsData, emailTemplatesData, outreachCampaignsData, creatorsData } = require('../utils/dataStorage');
+const { supabase, supabaseAdmin } = require('../config/supabase');
 const emailService = require('../services/emailService');
 const replyDetectionService = require('../services/replyDetectionService');
 
 const router = express.Router();
+
+// Helper function to get the appropriate database client
+const getDbClient = (userId) => {
+  const isDemoUser = userId === '550e8400-e29b-41d4-a716-446655440000' || userId === '1';
+  return isDemoUser && supabaseAdmin ? supabaseAdmin : supabase;
+};
+
+// Helper function to map auth user ID to Supabase UUID
+const getSupabaseUserId = (authUserId) => {
+  if (authUserId === '550e8400-e29b-41d4-a716-446655440000' || 
+      authUserId === '1' || 
+      authUserId === 1) {
+    return '550e8400-e29b-41d4-a716-446655440000';
+  }
+  return authUserId;
+};
 
 // Initialize default outreach campaigns if none exist
 const initializeDefaultOutreachCampaigns = () => {
@@ -107,11 +123,23 @@ initializeDefaultOutreachCampaigns();
 // @route   GET /api/outreach/stats
 // @desc    Get outreach statistics
 // @access  Private
-router.get('/stats', authenticateToken, (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const userEmails = outreachEmailsData.getAll().filter(email => 
-      req.user.role === 'admin' || email.createdBy === req.user.id
-    );
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
+
+    // Get emails for this user from Supabase
+    let query = dbClient.from('outreach_emails').select('*');
+    
+    if (req.user.role !== 'admin') {
+      query = query.eq('created_by', supabaseUserId);
+    }
+
+    const { data: userEmails, error } = await query;
+
+    if (error) {
+      throw new Error('Error fetching emails: ' + error.message);
+    }
 
     const stats = {
       sentEmails: userEmails.filter(e => e.status === 'sent').length,
@@ -138,17 +166,26 @@ router.get('/stats', authenticateToken, (req, res) => {
 // @route   GET /api/outreach/emails
 // @desc    Get outreach emails
 // @access  Private
-router.get('/emails', authenticateToken, (req, res) => {
+router.get('/emails', authenticateToken, async (req, res) => {
   try {
-    let filteredEmails = outreachEmailsData.getAll();
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
 
+    let query = dbClient.from('outreach_emails').select('*').order('created_at', { ascending: false });
+    
     if (req.user.role !== 'admin') {
-      filteredEmails = filteredEmails.filter(email => email.createdBy === req.user.id);
+      query = query.eq('created_by', supabaseUserId);
+    }
+
+    const { data: emails, error } = await query;
+
+    if (error) {
+      throw new Error('Error fetching emails: ' + error.message);
     }
 
     res.json({
       success: true,
-      data: { emails: filteredEmails }
+      data: { emails: emails || [] }
     });
 
   } catch (error) {
@@ -163,7 +200,7 @@ router.get('/emails', authenticateToken, (req, res) => {
 // @route   POST /api/outreach/emails
 // @desc    Create new outreach email
 // @access  Private (Brand/Agency only)
-router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admin'), (req, res) => {
+router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
     const { campaignId, creatorId, subject, body } = req.body;
 
@@ -174,17 +211,28 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
       });
     }
 
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
+
     const emailData = {
-      campaignId,
-      creatorId,
+      campaign_id: campaignId,
+      creator_id: creatorId,
       subject,
       body,
       status: 'draft',
-      createdBy: req.user.id,
-      createdAt: new Date().toISOString()
+      created_by: supabaseUserId,
+      created_at: new Date().toISOString()
     };
 
-    const newEmail = outreachEmailsData.add(emailData);
+    const { data: newEmail, error } = await dbClient
+      .from('outreach_emails')
+      .insert([emailData])
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error('Error creating email: ' + error.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -207,9 +255,17 @@ router.post('/emails', authenticateToken, authorizeRole('brand', 'agency', 'admi
 router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency', 'admin'), async (req, res) => {
   try {
     const emailId = req.params.id;
-    const email = outreachEmailsData.findById(emailId);
+    const supabaseUserId = getSupabaseUserId(req.user.id);
+    const dbClient = getDbClient(supabaseUserId);
 
-    if (!email) {
+    // Get email from Supabase
+    const { data: email, error: emailError } = await dbClient
+      .from('outreach_emails')
+      .select('*')
+      .eq('id', emailId)
+      .single();
+
+    if (emailError || !email) {
       return res.status(404).json({
         success: false,
         message: 'Email not found'
@@ -217,65 +273,101 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
     }
 
     // Check if user owns the email or is admin
-    if (email.createdBy !== req.user.id && req.user.role !== 'admin') {
+    if (email.created_by !== supabaseUserId && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized to send this email'
       });
     }
 
-    // Enhanced creator lookup - try multiple strategies
+    // Enhanced creator lookup in Supabase - try multiple strategies
     let creator = null;
     
-    // Strategy 1: Direct ID lookup
-    creator = creatorsData.findById(email.creatorId);
+    console.log(`🔍 Looking for creator with ID: "${email.creator_id}"`);
+    
+    // Strategy 1: Direct ID lookup (numeric or UUID)
+    const { data: directCreator } = await dbClient
+      .from('creators')
+      .select('*')
+      .eq('id', email.creator_id)
+      .single();
+    
+    creator = directCreator;
     
     // Strategy 2: If not found, try to find by channel name (for string-based IDs)
     if (!creator) {
-      const allCreators = creatorsData.getAll();
+      console.log(`🔍 Direct ID lookup failed, trying channel name lookup...`);
       
       // Try to match by channel name slug (e.g., "linus-tech-tips" -> "Linus Tech Tips")
-      const channelNameFromId = email.creatorId
+      const channelNameFromId = email.creator_id
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
       
-      creator = allCreators.find(c => 
-        c.channelName.toLowerCase() === channelNameFromId.toLowerCase() ||
-        c.channelName.toLowerCase().replace(/\s+/g, '-') === email.creatorId.toLowerCase() ||
-        c.id === email.creatorId
-      );
+      const { data: channelCreators } = await dbClient
+        .from('creators')
+        .select('*')
+        .eq('user_id', supabaseUserId)
+        .or(`channel_name.ilike.%${channelNameFromId}%,channel_name.ilike.%${email.creator_id}%`);
+      
+      if (channelCreators && channelCreators.length > 0) {
+        creator = channelCreators.find(c => 
+          c.channel_name.toLowerCase() === channelNameFromId.toLowerCase() ||
+          c.channel_name.toLowerCase().replace(/\s+/g, '-') === email.creator_id.toLowerCase()
+        ) || channelCreators[0]; // Take the first match if exact match not found
+      }
     }
     
-    // Strategy 3: If still not found, try exact channel name match
+    // Strategy 3: If still not found, try broader search
     if (!creator) {
-      const allCreators = creatorsData.getAll();
-      creator = allCreators.find(c => 
-        c.channelName.toLowerCase().includes(email.creatorId.toLowerCase()) ||
-        email.creatorId.toLowerCase().includes(c.channelName.toLowerCase())
-      );
+      console.log(`🔍 Channel name lookup failed, trying broader search...`);
+      
+      const { data: allCreators } = await dbClient
+        .from('creators')
+        .select('*')
+        .eq('user_id', supabaseUserId);
+      
+      if (allCreators && allCreators.length > 0) {
+        creator = allCreators.find(c => {
+          const creatorIdStr = String(email.creator_id).toLowerCase();
+          const channelNameSlug = c.channel_name.toLowerCase().replace(/\s+/g, '-');
+          const channelNameWords = c.channel_name.toLowerCase();
+          
+          return channelNameSlug.includes(creatorIdStr) || 
+                 creatorIdStr.includes(channelNameSlug) ||
+                 channelNameWords.includes(creatorIdStr) ||
+                 creatorIdStr.includes(channelNameWords);
+        });
+      }
     }
 
     if (!creator) {
-      console.error(`Creator lookup failed for creatorId: "${email.creatorId}"`);
-      console.error('Available creators:', creatorsData.getAll().map(c => ({ id: c.id, name: c.channelName })));
+      console.error(`❌ Creator lookup failed for creatorId: "${email.creator_id}"`);
+      
+      // Get available creators for debugging
+      const { data: availableCreators } = await dbClient
+        .from('creators')
+        .select('id, channel_name, contact_email')
+        .eq('user_id', supabaseUserId);
+      
+      console.error('📋 Available creators:', availableCreators?.map(c => ({ id: c.id, name: c.channel_name })));
       
       return res.status(404).json({
         success: false,
         message: 'Creator not found',
         debug: {
           emailId: emailId,
-          creatorId: email.creatorId,
-          availableCreators: creatorsData.getAll().map(c => ({ id: c.id, name: c.channelName }))
+          creatorId: email.creator_id,
+          availableCreators: availableCreators?.map(c => ({ id: c.id, name: c.channel_name })) || []
         }
       });
     }
 
-    console.log(`✅ Creator found: ${creator.channelName} (ID: ${creator.id}) for email creatorId: ${email.creatorId}`);
+    console.log(`✅ Creator found: ${creator.channel_name} (ID: ${creator.id}) for email creatorId: ${email.creator_id}`);
 
     try {
       // Actually send the email using the email service
-      const recipientEmail = creator.contactEmail || creator.email || `${creator.channelName.toLowerCase().replace(/\s+/g, '')}@example.com`;
+      const recipientEmail = creator.contact_email || `${creator.channel_name.toLowerCase().replace(/\s+/g, '')}@example.com`;
       
       const emailResult = await emailService.sendEmail({
         to: recipientEmail,
@@ -285,43 +377,58 @@ router.put('/emails/:id/send', authenticateToken, authorizeRole('brand', 'agency
         fromName: process.env.DEFAULT_FROM_NAME || 'InfluencerFlow Team'
       });
 
-      // Update email status with send details and fix creator ID if needed
-      const updatedEmail = outreachEmailsData.update(emailId, {
+      // Update email status with send details in Supabase
+      const updateData = {
         status: 'sent',
-        sentAt: new Date().toISOString(),
-        messageId: emailResult.messageId,
+        sent_at: new Date().toISOString(),
+        message_id: emailResult.messageId,
         provider: emailResult.provider,
-        recipientEmail: recipientEmail,
-        deliveryStatus: 'delivered',
-        // Store Gmail-specific email ID for reply tracking
-        emailId: emailResult.emailId,
-        customEmailId: emailResult.emailId ? emailResult.emailId.replace('EMAIL-ID-', '') : null,
-        // Fix creator ID to use the correct numeric ID for future consistency
-        creatorId: creator.id,
-        notes: (email.notes || '') + `\n✅ Creator ID normalized from "${email.creatorId}" to "${creator.id}"`
-      });
+        recipient_email: recipientEmail,
+        delivery_status: 'delivered',
+        email_id: emailResult.emailId,
+        creator_id: creator.id, // Normalize creator ID
+        notes: (email.notes || '') + `\n✅ Creator ID normalized from "${email.creator_id}" to "${creator.id}" at ${new Date().toISOString()}`
+      };
+
+      const { data: updatedEmail, error: updateError } = await dbClient
+        .from('outreach_emails')
+        .update(updateData)
+        .eq('id', emailId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating email status:', updateError);
+      }
 
       res.json({
         success: true,
         message: 'Email sent successfully',
-        data: updatedEmail
+        data: updatedEmail || { ...email, ...updateData }
       });
 
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
       
       // Update email status to indicate failure
-      const updatedEmail = outreachEmailsData.update(emailId, {
+      const updateData = {
         status: 'failed',
-        sentAt: new Date().toISOString(),
-        errorMessage: emailError.message,
-        deliveryStatus: 'failed'
-      });
+        sent_at: new Date().toISOString(),
+        error_message: emailError.message,
+        delivery_status: 'failed'
+      };
+
+      const { data: updatedEmail } = await dbClient
+        .from('outreach_emails')
+        .update(updateData)
+        .eq('id', emailId)
+        .select()
+        .single();
 
       res.status(500).json({
         success: false,
         message: `Failed to send email: ${emailError.message}`,
-        data: updatedEmail
+        data: updatedEmail || { ...email, ...updateData }
       });
     }
 
