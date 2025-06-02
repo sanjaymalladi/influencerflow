@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Plus, Calendar, DollarSign, Target, Users, Edit, Trash2, TrendingUp, Eye, PlayCircle, Zap, Pause, RotateCcw } from 'lucide-react';
+import { Loader2, Plus, Calendar, DollarSign, Target, Users, Edit, Trash2, TrendingUp, Eye, PlayCircle, Zap, Pause, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import Navigation from '@/components/Navigation';
 
@@ -552,50 +552,85 @@ const Campaigns: React.FC = () => {
 
                     {/* Management Actions Row (for brand/agency users) */}
                     {canCreateCampaigns && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50"
-                          onClick={() => handleEdit(campaign)}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        
-                        {campaign.status !== 'active' && (
+                      <div className="space-y-2">
+                        {/* First Row: Edit Button */}
+                        <div className="flex gap-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="flex-1 rounded-xl border-2 border-green-200 text-green-600 hover:bg-green-50"
-                            onClick={() => handleStatusChange(campaign.id, 'active')}
-                            disabled={isUpdating === campaign.id}
+                            className="flex-1 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
+                            onClick={() => handleEdit(campaign)}
                           >
-                            {isUpdating === campaign.id ? (
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            ) : (
-                              <PlayCircle className="h-4 w-4 mr-1" />
-                            )}
-                            Activate
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit Campaign
                           </Button>
-                        )}
+                        </div>
                         
-                        {campaign.status === 'active' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 rounded-xl border-2 border-yellow-200 text-yellow-600 hover:bg-yellow-50"
-                            onClick={() => handleStatusChange(campaign.id, 'paused')}
-                            disabled={isUpdating === campaign.id}
-                          >
-                            {isUpdating === campaign.id ? (
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            ) : (
-                              <Pause className="h-4 w-4 mr-1" />
-                            )}
-                            Pause
-                          </Button>
-                        )}
+                        {/* Second Row: Status Toggle Buttons */}
+                        <div className="flex gap-2">
+                          {campaign.status === 'draft' || campaign.status === 'paused' ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 rounded-xl border-2 border-green-200 text-green-600 hover:bg-green-50 font-medium"
+                              onClick={() => handleStatusChange(campaign.id, 'active')}
+                              disabled={isUpdating === campaign.id}
+                            >
+                              {isUpdating === campaign.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <PlayCircle className="h-4 w-4 mr-1" />
+                              )}
+                              Make Active
+                            </Button>
+                          ) : campaign.status === 'active' ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 rounded-xl border-2 border-yellow-200 text-yellow-600 hover:bg-yellow-50 font-medium"
+                                onClick={() => handleStatusChange(campaign.id, 'paused')}
+                                disabled={isUpdating === campaign.id}
+                              >
+                                {isUpdating === campaign.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Pause className="h-4 w-4 mr-1" />
+                                )}
+                                Pause
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 rounded-xl border-2 border-purple-200 text-purple-600 hover:bg-purple-50 font-medium"
+                                onClick={() => handleStatusChange(campaign.id, 'completed')}
+                                disabled={isUpdating === campaign.id}
+                              >
+                                {isUpdating === campaign.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                )}
+                                Complete
+                              </Button>
+                            </>
+                          ) : campaign.status === 'completed' ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 rounded-xl border-2 border-green-200 text-green-600 hover:bg-green-50 font-medium"
+                              onClick={() => handleStatusChange(campaign.id, 'active')}
+                              disabled={isUpdating === campaign.id}
+                            >
+                              {isUpdating === campaign.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                              )}
+                              Reactivate
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
                     )}
                   </div>
