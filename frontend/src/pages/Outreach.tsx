@@ -349,6 +349,7 @@ const Outreach = () => {
     setIsLoading(true);
     try {
       if (showToast) console.log('🔄 Refreshing outreach dashboard data...');
+      console.log('🎯 loadData called with showMockData:', showMockData);
       
       if (!isAuthenticated) {
         console.log('Not authenticated, attempting auto-login...');
@@ -404,6 +405,7 @@ const Outreach = () => {
         setTemplates(templatesData);
 
         if (showToast) toast.success('📊 Mock data loaded successfully!');
+        console.log('✅ Mock data has been set:', { emails: [mockOutreachEmail], campaigns: [mockCampaign], stats: mockStats });
 
       } else {
         const [statsData, emailsData, campaignsData, templatesData] = await Promise.all([
@@ -714,18 +716,28 @@ The AI will automatically include all campaign information and create compelling
           <div>
             <h1 className="text-4xl font-bold text-[#222222] mb-2">Outreach Campaigns</h1>
             <p className="text-gray-600">
-              {showMockData ? "Displaying Mock Negotiation Data" : "Manage and track your creator outreach campaigns"}
+              {showMockData ? "🎭 Displaying Mock Negotiation Data with Sanjay M (Demo Mode)" : "Manage and track your creator outreach campaigns"}
             </p>
+            {showMockData && (
+              <div className="mt-2 px-3 py-1 bg-[#FFE600] bg-opacity-20 border border-[#FFE600] rounded-lg text-sm text-[#222222] font-medium">
+                📋 Mock Data: Complete negotiation flow with contract signing
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button 
-              variant="outline"
+              variant={showMockData ? "default" : "outline"}
               onClick={() => {
+                console.log('🔄 Toggling showMockData from', showMockData, 'to', !showMockData);
                 setShowMockData(!showMockData);
+                // Force reload after toggle
+                setTimeout(() => {
+                  loadData(true);
+                }, 100);
               }}
-              className="rounded-xl"
+              className={`rounded-xl ${showMockData ? 'bg-[#FFE600] hover:bg-[#E6CF00] text-[#222222]' : ''}`}
             >
-              {showMockData ? "Show Live Data" : "Show Mock Data"}
+              {showMockData ? "🎭 Mock Data Active" : "📡 Show Live Data"}
             </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
