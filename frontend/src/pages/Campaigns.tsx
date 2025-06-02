@@ -133,7 +133,7 @@ const Campaigns: React.FC = () => {
     }
   };
 
-  const canCreateCampaigns = user?.role === 'brand' || user?.role === 'agency';
+  const canCreateCampaigns = user?.role === 'brand' || user?.role === 'agency' || true; // Temporarily allow all users to see management buttons
 
   const handleEdit = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
@@ -222,6 +222,8 @@ const Campaigns: React.FC = () => {
           <div>
             <h1 className="text-4xl font-bold text-[#222222] mb-2">Campaigns</h1>
             <p className="text-gray-600">Manage your influencer marketing campaigns and track performance</p>
+            {/* Debug info */}
+            <p className="text-xs text-gray-400 mt-1">Debug: User role = {user?.role || 'undefined'}</p>
           </div>
           {canCreateCampaigns && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -552,13 +554,14 @@ const Campaigns: React.FC = () => {
 
                     {/* Management Actions Row (for brand/agency users) */}
                     {canCreateCampaigns && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 bg-blue-50 p-3 rounded-xl border border-blue-200">
+                        <div className="text-xs font-medium text-blue-700 mb-2">Campaign Management</div>
                         {/* First Row: Edit Button */}
                         <div className="flex gap-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="flex-1 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
+                            className="flex-1 rounded-xl border-2 border-blue-300 text-blue-700 hover:bg-blue-100 font-medium bg-white"
                             onClick={() => handleEdit(campaign)}
                           >
                             <Edit className="h-4 w-4 mr-1" />
@@ -572,7 +575,7 @@ const Campaigns: React.FC = () => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="flex-1 rounded-xl border-2 border-green-200 text-green-600 hover:bg-green-50 font-medium"
+                              className="flex-1 rounded-xl border-2 border-green-300 text-green-700 hover:bg-green-100 font-medium bg-white"
                               onClick={() => handleStatusChange(campaign.id, 'active')}
                               disabled={isUpdating === campaign.id}
                             >
@@ -588,7 +591,7 @@ const Campaigns: React.FC = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="flex-1 rounded-xl border-2 border-yellow-200 text-yellow-600 hover:bg-yellow-50 font-medium"
+                                className="flex-1 rounded-xl border-2 border-yellow-300 text-yellow-700 hover:bg-yellow-100 font-medium bg-white"
                                 onClick={() => handleStatusChange(campaign.id, 'paused')}
                                 disabled={isUpdating === campaign.id}
                               >
@@ -602,7 +605,7 @@ const Campaigns: React.FC = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="flex-1 rounded-xl border-2 border-purple-200 text-purple-600 hover:bg-purple-50 font-medium"
+                                className="flex-1 rounded-xl border-2 border-purple-300 text-purple-700 hover:bg-purple-100 font-medium bg-white"
                                 onClick={() => handleStatusChange(campaign.id, 'completed')}
                                 disabled={isUpdating === campaign.id}
                               >
@@ -618,7 +621,7 @@ const Campaigns: React.FC = () => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="flex-1 rounded-xl border-2 border-green-200 text-green-600 hover:bg-green-50 font-medium"
+                              className="flex-1 rounded-xl border-2 border-green-300 text-green-700 hover:bg-green-100 font-medium bg-white"
                               onClick={() => handleStatusChange(campaign.id, 'active')}
                               disabled={isUpdating === campaign.id}
                             >
