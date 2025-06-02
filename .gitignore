@@ -111,9 +111,12 @@ backend/generate-hash.js
 **/*.test.js
 **/*.test.ts
 
-# Data directories (old JSON files)
+# Data directories (old JSON files) - excluding mock data
 data/
 */data/
+# Allow mock data for frontend
+!frontend/src/data/
+!frontend/src/data/mock-negotiation-data.ts
 
 # Migration scripts (if recreated)
 *migrate*.js
