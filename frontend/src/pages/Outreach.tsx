@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare, UserCircle, Briefcase, Sparkles } from "lucide-react";
 import { toast } from 'sonner';
-import { mockData } from '../data/mock-negotiation-data';
+import { mockData } from '../constants/mock-negotiation-data';
 
 // Email Preview Component
 const EmailPreviewDialog = ({ 
