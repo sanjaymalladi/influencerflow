@@ -1,4 +1,4 @@
-const { supabase } = require('../src/config/supabase');
+const { supabaseAdmin } = require('../src/config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
 // --- Configuration & Mock Data ---
@@ -36,7 +36,7 @@ Marketing Manager
 Demo Company`;
 
 async function seedMockNegotiation() {
-  console.log('--- Starting Mock Negotiation Seeding Script ---');
+  console.log('--- Starting Mock Negotiation Seeding Script (using Admin Client) ---');
   console.log(`USING Campaign ID: ${MOCK_CAMPAIGN_ID}`);
   console.log(`USING Creator ID: ${MOCK_CREATOR_ID}`);
   console.log(`Generated Outreach Email ID: ${MOCK_OUTREACH_EMAIL_ID}`);
@@ -49,9 +49,17 @@ async function seedMockNegotiation() {
   }
 
   try {
+    // Ensure supabaseAdmin is available
+    if (!supabaseAdmin) {
+      console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      console.error('ERROR: Supabase Admin Client is not available. Check SUPABASE_SERVICE_KEY.');
+      console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+      return; // Stop the script
+    }
+
     // 1. Ensure/Update Initial Outreach Email (from user's perspective)
     console.log(`Step 1: Upserting outreach email ID: ${MOCK_OUTREACH_EMAIL_ID}`);
-    const { error: outreachError } = await supabase
+    const { error: outreachError } = await supabaseAdmin
       .from('outreach_emails')
       .upsert({
         id: MOCK_OUTREACH_EMAIL_ID,
@@ -96,7 +104,7 @@ async function seedMockNegotiation() {
       }
     ];
 
-    const { error: convInsertError } = await supabase
+    const { error: convInsertError } = await supabaseAdmin
       .from('conversations')
       .insert({
         id: conversationId,
@@ -127,9 +135,9 @@ async function seedMockNegotiation() {
       received_at: new Date('2025-06-01T20:00:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError1 } = await supabase.from('conversations').update({ messages, status: 'replied', last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
+    const { error: convUpdateError1 } = await supabaseAdmin.from('conversations').update({ messages, status: 'replied', last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
     if (convUpdateError1) throw new Error(`Conversation update error (Sanjay interested): ${convUpdateError1.message}`);
-    const { error: outreachUpdateError1 } = await supabase.from('outreach_emails').update({ status: 'replied', replied_at: messages[messages.length - 1].received_at }).eq('id', MOCK_OUTREACH_EMAIL_ID);
+    const { error: outreachUpdateError1 } = await supabaseAdmin.from('outreach_emails').update({ status: 'replied', replied_at: messages[messages.length - 1].received_at }).eq('id', MOCK_OUTREACH_EMAIL_ID);
     if (outreachUpdateError1) throw new Error(`Outreach email update error (Sanjay interested): ${outreachUpdateError1.message}`);
     console.log('Sanjay\'s first reply added.');
 
@@ -145,7 +153,7 @@ async function seedMockNegotiation() {
       sent_at: new Date('2025-06-01T20:05:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError2 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
+    const { error: convUpdateError2 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
     if (convUpdateError2) throw new Error(`Conversation update error (AI deliverables): ${convUpdateError2.message}`);
     console.log('AI detailed deliverables reply added.');
 
@@ -161,7 +169,7 @@ async function seedMockNegotiation() {
       received_at: new Date('2025-06-01T20:15:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError3 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
+    const { error: convUpdateError3 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
     if (convUpdateError3) throw new Error(`Conversation update error (Sanjay 10min request): ${convUpdateError3.message}`);
     console.log('Sanjay\'s 10-min video request added.');
     
@@ -177,11 +185,11 @@ async function seedMockNegotiation() {
       sent_at: new Date('2025-06-01T20:17:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError4 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
+    const { error: convUpdateError4 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
     if (convUpdateError4) throw new Error(`Conversation update error (AI hold): ${convUpdateError4.message}`);
     
     const approval1Id = uuidv4();
-    const { error: approvalInsertError1 } = await supabase.from('human_approvals').insert({
+    const { error: approvalInsertError1 } = await supabaseAdmin.from('human_approvals').insert({
       id: approval1Id,
       conversation_id: conversationId,
       user_id: MOCK_USER_ID,
@@ -198,7 +206,7 @@ async function seedMockNegotiation() {
 
     // Human: "ok 10 min is fine but he needs to do 2 Instagram post"
     console.log('Step 7: Human decision on approval (1)');
-    const { error: approvalUpdateError1 } = await supabase.from('human_approvals').update({
+    const { error: approvalUpdateError1 } = await supabaseAdmin.from('human_approvals').update({
       status: 'action_taken', 
       human_decision_notes: "Approved 10 min video, countered with 2 Instagram posts.",
       resolved_at: new Date('2025-06-01T20:25:00Z').toISOString(),
@@ -218,7 +226,7 @@ async function seedMockNegotiation() {
       sent_at: new Date('2025-06-01T20:27:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError5 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
+    const { error: convUpdateError5 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
     if (convUpdateError5) throw new Error(`Conversation update error (AI counter): ${convUpdateError5.message}`);
     console.log('AI counter-offer reply added.');
 
@@ -234,7 +242,7 @@ async function seedMockNegotiation() {
       received_at: new Date('2025-06-01T20:35:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError6 } = await supabase.from('conversations').update({ messages, status: 'negotiation_agreed', last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
+    const { error: convUpdateError6 } = await supabaseAdmin.from('conversations').update({ messages, status: 'negotiation_agreed', last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
     if (convUpdateError6) throw new Error(`Conversation update error (Sanjay accepts): ${convUpdateError6.message}`);
     console.log('Sanjay accepts counter-offer.');
 
@@ -250,10 +258,10 @@ async function seedMockNegotiation() {
       sent_at: new Date('2025-06-01T20:37:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError7 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
+    const { error: convUpdateError7 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
     if (convUpdateError7) throw new Error(`Conversation update error (AI contract prep): ${convUpdateError7.message}`);
     
-    const { error: contractInsertError } = await supabase.from('contracts').insert({
+    const { error: contractInsertError } = await supabaseAdmin.from('contracts').insert({
       id: contractId,
       conversation_id: conversationId,
       campaign_id: MOCK_CAMPAIGN_ID,
@@ -268,7 +276,7 @@ async function seedMockNegotiation() {
 
     // AI: "here is the contract" (PDF) & asks human to verify/sign.
     console.log('Step 11: AI "sends" contract to human for approval');
-    const { error: contractUpdateError1 } = await supabase.from('contracts').update({
+    const { error: contractUpdateError1 } = await supabaseAdmin.from('contracts').update({
       contract_pdf_url: 'https://example.com/mock_contract_sanjay_v1.pdf', 
       status: 'pending_user_approval',
       updated_at: new Date('2025-06-01T20:40:00Z').toISOString(),
@@ -276,7 +284,7 @@ async function seedMockNegotiation() {
     if (contractUpdateError1) throw new Error(`Contract update error (pending user approval): ${contractUpdateError1.message}`);
 
     const approval2Id = uuidv4();
-    const { error: approvalInsertError2 } = await supabase.from('human_approvals').insert({
+    const { error: approvalInsertError2 } = await supabaseAdmin.from('human_approvals').insert({
       id: approval2Id,
       conversation_id: conversationId,
       related_contract_id: contractId,
@@ -294,13 +302,13 @@ async function seedMockNegotiation() {
     
     // Human: Verifies and approves sending to Sanjay.
     console.log('Step 12: Human approves contract for sending');
-    const { error: approvalUpdateError2 } = await supabase.from('human_approvals').update({
+    const { error: approvalUpdateError2 } = await supabaseAdmin.from('human_approvals').update({
       status: 'approved',
       resolved_at: new Date('2025-06-01T20:45:00Z').toISOString(),
     }).eq('id', approval2Id);
     if (approvalUpdateError2) throw new Error(`Human approval update error (2): ${approvalUpdateError2.message}`);
     
-    const { error: contractUpdateError2 } = await supabase.from('contracts').update({
+    const { error: contractUpdateError2 } = await supabaseAdmin.from('contracts').update({
       status: 'sent_to_creator',
       sent_to_creator_at: new Date('2025-06-01T20:45:10Z').toISOString(),
       user_signed_at: new Date('2025-06-01T20:45:00Z').toISOString(), 
@@ -318,7 +326,7 @@ async function seedMockNegotiation() {
       sent_at: new Date('2025-06-01T20:45:15Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError8 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
+    const { error: convUpdateError8 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].sent_at }).eq('id', conversationId);
     if (convUpdateError8) throw new Error(`Conversation update error (AI sends contract): ${convUpdateError8.message}`);
     console.log('Contract sent to Sanjay (simulated) & approval (2) updated.');
 
@@ -335,10 +343,10 @@ async function seedMockNegotiation() {
       received_at: new Date('2025-06-01T21:00:00Z').toISOString(),
       created_at: new Date().toISOString(),
     });
-    const { error: convUpdateError9 } = await supabase.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
+    const { error: convUpdateError9 } = await supabaseAdmin.from('conversations').update({ messages, last_message_at: messages[messages.length - 1].received_at }).eq('id', conversationId);
     if (convUpdateError9) throw new Error(`Conversation update error (Sanjay returns signed): ${convUpdateError9.message}`);
     
-    const { error: contractUpdateError3 } = await supabase.from('contracts').update({
+    const { error: contractUpdateError3 } = await supabaseAdmin.from('contracts').update({
       status: 'signed_by_creator', 
       creator_signed_at: new Date('2025-06-01T21:00:00Z').toISOString(),
       signed_contract_pdf_url: 'https://example.com/mock_signed_contract_sanjay.pdf',
@@ -349,7 +357,7 @@ async function seedMockNegotiation() {
     // AI asks human to verify signed copy.
     console.log('Step 14: AI asks human for final verification');
     const approval3Id = uuidv4();
-    const { error: approvalInsertError3 } = await supabase.from('human_approvals').insert({
+    const { error: approvalInsertError3 } = await supabaseAdmin.from('human_approvals').insert({
       id: approval3Id,
       conversation_id: conversationId,
       related_contract_id: contractId,
@@ -365,19 +373,19 @@ async function seedMockNegotiation() {
 
     // Human: Verifies, closes negotiations.
     console.log('Step 15: Human verifies and completes negotiation');
-    const { error: approvalUpdateError3 } = await supabase.from('human_approvals').update({
+    const { error: approvalUpdateError3 } = await supabaseAdmin.from('human_approvals').update({
       status: 'completed', 
       resolved_at: new Date('2025-06-01T21:05:00Z').toISOString(),
     }).eq('id', approval3Id);
     if (approvalUpdateError3) throw new Error(`Human approval update error (3): ${approvalUpdateError3.message}`);
     
-    const { error: contractUpdateError4 } = await supabase.from('contracts').update({
+    const { error: contractUpdateError4 } = await supabaseAdmin.from('contracts').update({
       status: 'active', 
       updated_at: new Date('2025-06-01T21:05:00Z').toISOString(),
     }).eq('id', contractId);
     if (contractUpdateError4) throw new Error(`Contract update error (active): ${contractUpdateError4.message}`);
     
-    const { error: convUpdateError10 } = await supabase.from('conversations').update({
+    const { error: convUpdateError10 } = await supabaseAdmin.from('conversations').update({
       status: 'contract_active', 
     }).eq('id', conversationId);
     if (convUpdateError10) throw new Error(`Conversation update error (contract active): ${convUpdateError10.message}`);
