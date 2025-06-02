@@ -7,7 +7,6 @@ import Navigation from "@/components/Navigation";
 import EmailPipeline from "@/components/EmailPipeline";
 import CRMDashboard from "@/components/CRMDashboard";
 import PendingApprovals from "@/components/PendingApprovals";
-import EmailDebugPanel from "@/components/EmailDebugPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare } from "lucide-react";
+import { Loader2, Mail, Users, TrendingUp, Clock, Zap, Plus, Send, Eye, Reply, X, CheckCircle2, Check, Edit3, Save, ArrowRight, ArrowLeft, BarChart3, GitBranch, MessageSquare, UserCircle, Briefcase, Sparkles } from "lucide-react";
 import { toast } from 'sonner';
+import mockData from '../data/mock-negotiation-data.json';
 
 // Email Preview Component
 const EmailPreviewDialog = ({ 
@@ -327,6 +327,9 @@ const Outreach = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isGeneratingEmails, setIsGeneratingEmails] = useState(false);
 
+  // State for mock data driven view
+  const [showMockData, setShowMockData] = useState(true);
+
   const [formData, setFormData] = useState({
     campaignId: '',
     creatorId: '',
@@ -343,95 +346,117 @@ const Outreach = () => {
   });
 
   const loadData = async (showToast = false) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
+      if (showToast) console.log('🔄 Refreshing outreach dashboard data...');
       
-      if (showToast) {
-        console.log('🔄 Refreshing outreach dashboard data...');
-      }
-      
-      // Ensure we're authenticated first
       if (!isAuthenticated) {
         console.log('Not authenticated, attempting auto-login...');
         await login('demo@influencerflow.com', 'password123');
-        // Wait a bit for auth to propagate
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      const [statsData, emailsData, campaignsData, templatesData] = await Promise.all([
-        outreachAPI.getStats(),
-        outreachAPI.getEmails(),
-        campaignsAPI.getCampaigns(),
-        outreachAPI.getTemplates()
-      ]);
-      
-      console.log('📊 Loaded outreach data:', {
-        stats: statsData,
-        emailsCount: emailsData.emails.length,
-        campaignsCount: campaignsData.campaigns?.length || 0
-      });
-      
-      setStats(statsData);
-      setEmails(emailsData.emails);
-      setTemplates(templatesData);
+      if (showMockData) {
+        console.log('📊 Loading mock negotiation data for display...');
+        const mockOutreachEmail: OutreachEmail = {
+          id: mockData.outreachEmail.id,
+          campaignId: mockData.outreachEmail.campaignId,
+          creatorId: mockData.outreachEmail.creatorId,
+          subject: mockData.outreachEmail.subject,
+          body: mockData.outreachEmail.content,
+          status: mockData.outreachEmail.status as OutreachEmail['status'],
+          recipientEmail: mockData.outreachEmail.recipientEmail,
+          provider: mockData.outreachEmail.provider,
+          sentAt: mockData.outreachEmail.sentAt,
+          createdAt: mockData.outreachEmail.createdAt,
+          updatedAt: mockData.outreachEmail.updatedAt,
+          messageId: mockData.outreachEmail.trackingData.messageId,
+          createdBy: mockData.outreachEmail.userId,
+        };
+        setEmails([mockOutreachEmail]);
 
-      // Use real campaigns from backend or fallback
-      if (campaignsData.campaigns && campaignsData.campaigns.length > 0) {
-        setCampaigns(campaignsData.campaigns);
-        console.log('✅ Using real campaigns from backend:', campaignsData.campaigns.length);
+        const mockCampaign: Campaign = {
+          id: mockData.campaign.id,
+          name: mockData.campaign.name,
+          description: mockData.campaign.description,
+          status: mockData.campaign.status as Campaign['status'],
+          budget: 10000,
+          startDate: new Date().toISOString(),
+          endDate: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          goals: [],
+          deliverables: [],
+        };
+        setCampaigns([mockCampaign]);
+        
+        const replied = mockData.conversation.messages.some(m => m.sender_type === 'creator');
+        const mockStats: OutreachStats = {
+          totalEmails: 1,
+          sentEmails: 1,
+          openedEmails: mockData.conversation.messages.length > 1 ? 1 : 0,
+          repliedEmails: replied ? 1 : 0,
+          openRate: mockData.conversation.messages.length > 1 ? 100 : 0,
+          responseRate: replied ? 100 : 0,
+        };
+        setStats(mockStats);
+
+        const templatesData = await outreachAPI.getTemplates();
+        setTemplates(templatesData);
+
+        if (showToast) toast.success('📊 Mock data loaded successfully!');
+
       } else {
-        console.warn('⚠️ No campaigns found, using fallback data');
-        setCampaigns([
-          {
-            id: 'demo-campaign-1',
-            name: 'Tech Product Launch Q1 2024',
-            description: 'Launch campaign for our new smartphone featuring top tech reviewers',
-            budget: 50000,
-            startDate: '2024-01-15',
-            endDate: '2024-03-15',
-            status: 'active',
-            goals: ['Brand Awareness', 'Product Reviews', 'Social Media Buzz'],
-            deliverables: [
-              { type: 'Video Review', quantity: 5, price: 5000 },
-              { type: 'Social Media Posts', quantity: 10, price: 1000 },
-              { type: 'Unboxing Video', quantity: 3, price: 3000 }
-            ],
-            createdAt: new Date().toISOString()
-          }
+        const [statsData, emailsData, campaignsData, templatesData] = await Promise.all([
+          outreachAPI.getStats(),
+          outreachAPI.getEmails(),
+          campaignsAPI.getCampaigns(),
+          outreachAPI.getTemplates()
         ]);
+        
+        console.log('📊 Loaded outreach data from API:', {
+          stats: statsData,
+          emailsCount: emailsData.emails.length,
+          campaignsCount: campaignsData.campaigns?.length || 0
+        });
+        
+        setStats(statsData);
+        setEmails(emailsData.emails);
+        setTemplates(templatesData);
+
+        if (campaignsData.campaigns && campaignsData.campaigns.length > 0) {
+          setCampaigns(campaignsData.campaigns);
+        } else {
+          setCampaigns([
+            {
+              id: 'fallback-campaign-1',
+              name: 'Fallback Tech Product Launch Q1 2024',
+              description: 'Fallback campaign for new smartphone.',
+              budget: 50000, startDate: '2024-01-15', endDate: '2024-03-15', status: 'active',
+              goals: ['Brand Awareness', 'Product Reviews'],
+              deliverables: [{ type: 'Video Review', quantity: 5, price: 5000 }],
+              createdAt: new Date().toISOString()
+            }
+          ]);
+        }
+        if (showToast) toast.success('✅ Dashboard data refreshed successfully!');
       }
-      
-      if (showToast) {
-        toast.success('✅ Dashboard data refreshed successfully!');
-      }
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('❌ Failed to load outreach data:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      
-      if (showToast) {
-        toast.error('Failed to refresh data: ' + (error.message || 'Unknown error'));
-      } else {
-        toast.error('Failed to load outreach data');
-      }
-      
-      // Use better fallback campaigns that match backend data
+      toast.error('Failed to load data: ' + (error.message || 'Unknown error'));
       setCampaigns([
         {
           id: 'fallback-campaign-1',
-          name: 'Tech Product Launch Q1 2024',
-          description: 'Launch campaign for our new smartphone featuring top tech reviewers',
-          budget: 50000,
-          startDate: '2024-01-15',
-          endDate: '2024-03-15',
-          status: 'active',
-          goals: ['Brand Awareness', 'Product Reviews', 'Social Media Buzz'],
-          deliverables: [
-            { type: 'Video Review', quantity: 5, price: 5000 },
-            { type: 'Social Media Posts', quantity: 10, price: 1000 }
-          ],
+          name: 'Fallback Tech Product Launch Q1 2024',
+          description: 'Fallback campaign for new smartphone.',
+          budget: 50000, startDate: '2024-01-15', endDate: '2024-03-15', status: 'active',
+          goals: ['Brand Awareness', 'Product Reviews'],
+          deliverables: [{ type: 'Video Review', quantity: 5, price: 5000 }],
           createdAt: new Date().toISOString()
         }
       ]);
+             setEmails([]);
+       setStats({ totalEmails: 0, sentEmails: 0, openedEmails: 0, repliedEmails: 0, openRate: 0, responseRate: 0 });
     } finally {
       setIsLoading(false);
     }
@@ -439,7 +464,6 @@ const Outreach = () => {
 
   useEffect(() => {
     const initializeFromURL = async () => {
-      // Auto-login for demo if not authenticated
       if (!isAuthenticated) {
         try {
           console.log('Auto-logging in demo user...');
@@ -449,10 +473,8 @@ const Outreach = () => {
         }
       }
       
-      // First load the data
       await loadData();
       
-      // Check for URL parameters (creators from creator database)
       const creatorsParam = searchParams.get('creators');
       const campaignParam = searchParams.get('campaign');
       
@@ -461,9 +483,8 @@ const Outreach = () => {
           const creators = JSON.parse(decodeURIComponent(creatorsParam));
           setSelectedCreators(creators);
           
-          // Set initial bulk template with campaign pre-selected (will be replaced by AI)
           setBulkFormData({
-            campaignId: campaignParam || '',
+            campaignId: campaignParam || (campaigns.length > 0 ? campaigns[0].id : ''),
             subject: 'AI will generate personalized subjects',
             body: `🤖 AI Personalization Enabled
 
@@ -479,7 +500,7 @@ The AI will automatically include all campaign information and create compelling
             template: ''
           });
           
-          setIsCreateDialogOpen(true); // Auto-open dialog
+          setIsCreateDialogOpen(true);
         } catch (error) {
           console.error('Failed to parse creators from URL:', error);
         }
@@ -487,7 +508,7 @@ The AI will automatically include all campaign information and create compelling
     };
 
     initializeFromURL();
-  }, [searchParams, isAuthenticated, login]);
+  }, [searchParams, isAuthenticated, login, showMockData]);
 
   const handleCreateEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -524,7 +545,6 @@ The AI will automatically include all campaign information and create compelling
     try {
       setIsGeneratingEmails(true);
       
-      // Get campaign details
       const selectedCampaign = campaigns.find(c => c.id === bulkFormData.campaignId);
       if (!selectedCampaign) {
         throw new Error('Campaign not found');
@@ -532,10 +552,7 @@ The AI will automatically include all campaign information and create compelling
 
       toast.info('🤖 Generating personalized emails with AI...');
 
-      // Prepare requests for Gemini email generation
       const emailRequests: PersonalizedEmailRequest[] = selectedCreators.map(creator => {
-        // Try to find additional creator data from backend (if available)
-        // This would be populated if creators were selected from the saved creators tab
         const enhancedCreator = {
           id: creator.id,
           name: creator.name,
@@ -561,12 +578,10 @@ The AI will automatically include all campaign information and create compelling
         };
       });
 
-      // Generate personalized emails using Gemini
       const personalizedEmails = await geminiEmailService.generateBulkPersonalizedEmails(emailRequests);
       
       toast.success('✨ AI-generated personalized emails created!');
       
-      // Show preview dialog instead of immediately sending
       setGeneratedEmails(personalizedEmails);
       setIsCreateDialogOpen(false);
       setIsPreviewOpen(true);
@@ -585,9 +600,7 @@ The AI will automatically include all campaign information and create compelling
       setIsSendingBulk(true);
       toast.info('📧 Sending approved emails to creators...');
 
-      // Create and send personalized emails
       const outreachPromises = emails.map(async (emailData) => {
-        // Create email with personalized content
         const email = await outreachAPI.createEmail({
           campaignId: bulkFormData.campaignId,
           creatorId: emailData.creator.id,
@@ -595,7 +608,6 @@ The AI will automatically include all campaign information and create compelling
           body: emailData.body
         });
         
-        // Send email
         await outreachAPI.sendEmail(email.id);
         return { email, creator: emailData.creator };
       });
@@ -611,7 +623,6 @@ The AI will automatically include all campaign information and create compelling
       setBulkFormData({ campaignId: '', subject: '', body: '', template: '' });
       setGeneratedEmails([]);
       
-      // Force refresh dashboard data
       await loadData(true);
     } catch (error: any) {
       console.error('Failed to send emails:', error);
@@ -642,7 +653,6 @@ The AI will automatically include all campaign information and create compelling
         description: `Email status updated to: ${updatedEmail.status}`
       });
       
-      // Force refresh dashboard data
       await loadData(true);
     } catch (error: any) {
       console.error('❌ Failed to send email from dashboard:', error);
@@ -700,293 +710,300 @@ The AI will automatically include all campaign information and create compelling
       <Navigation />
       
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold text-[#222222] mb-2">Outreach Campaigns</h1>
-            <p className="text-gray-600">Manage and track your creator outreach campaigns</p>
+            <p className="text-gray-600">
+              {showMockData ? "Displaying Mock Negotiation Data" : "Manage and track your creator outreach campaigns"}
+            </p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-          <Button className="bg-[#FFE600] hover:bg-[#E6CF00] text-[#222222] rounded-xl font-semibold px-6">
-                <Plus className="w-4 h-4 mr-2" />
-                New Email
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-[#222222]">
-                  {selectedCreators.length > 0 ? (
-                    <div className="flex items-center gap-2">
-                      🤖 AI-Powered Bulk Outreach to {selectedCreators.length} Creators
-                    </div>
-                  ) : (
-                    'Create New Outreach Email'
-                  )}
-                </DialogTitle>
-                <DialogDescription>
-                  {selectedCreators.length > 0 ? (
-                    `Generate personalized emails for ${selectedCreators.length} selected creators using AI.`
-                  ) : (
-                    'Create and send individual outreach emails to specific creators.'
-                  )}
-                </DialogDescription>
-                {selectedCreators.length > 0 && bulkFormData.campaignId && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      For campaign: {campaigns.find(c => c.id === bulkFormData.campaignId)?.name || 'Selected Campaign'}
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-xs text-blue-800 font-medium">
-                        ✨ Gemini AI will generate unique, personalized emails for each creator with campaign details
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setShowMockData(!showMockData);
+              }}
+              className="rounded-xl"
+            >
+              {showMockData ? "Show Live Data" : "Show Mock Data"}
+            </Button>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+            <Button className="bg-[#FFE600] hover:bg-[#E6CF00] text-[#222222] rounded-xl font-semibold px-6">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Email
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold text-[#222222]">
+                    {selectedCreators.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        🤖 AI-Powered Bulk Outreach to {selectedCreators.length} Creators
+                      </div>
+                    ) : (
+                      'Create New Outreach Email'
+                    )}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {selectedCreators.length > 0 ? (
+                      `Generate personalized emails for ${selectedCreators.length} selected creators using AI.`
+                    ) : (
+                      'Create and send individual outreach emails to specific creators.'
+                    )}
+                  </DialogDescription>
+                  {selectedCreators.length > 0 && bulkFormData.campaignId && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        For campaign: {campaigns.find(c => c.id === bulkFormData.campaignId)?.name || 'Selected Campaign'}
                       </p>
-                    </div>
-                  </div>
-                )}
-              </DialogHeader>
-
-              {selectedCreators.length > 0 ? (
-                // Bulk outreach form
-                <div className="space-y-6">
-                  <div className="bg-[#FFE600] bg-opacity-10 p-4 rounded-xl">
-                    <h3 className="font-semibold text-[#222222] mb-2 flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      Selected Creators ({selectedCreators.length})
-                    </h3>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                      {selectedCreators.map((creator, index) => (
-                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                          {creator.name}
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCreators(prev => prev.filter((_, i) => i !== index))}
-                            className="ml-1 hover:text-red-600"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleBulkOutreach} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="bulk-campaign">Campaign</Label>
-                      <Select 
-                        value={bulkFormData.campaignId}
-                        onValueChange={(value) => setBulkFormData(prev => ({ ...prev, campaignId: value }))}
-                        required
-                      >
-                        <SelectTrigger className="rounded-xl">
-                          <SelectValue placeholder="Select campaign" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {campaigns.length === 0 ? (
-                            <SelectItem value="" disabled>
-                              No campaigns available
-                            </SelectItem>
-                          ) : (
-                            campaigns.map((campaign) => (
-                              <SelectItem key={campaign.id} value={campaign.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{campaign.name}</span>
-                                  <span className="text-xs text-gray-500">
-                                    Budget: ${campaign.budget.toLocaleString()} • Status: {campaign.status}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                      {bulkFormData.campaignId && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                          <Check className="w-3 h-3" />
-                          Campaign pre-selected from workflow
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs text-blue-800 font-medium">
+                          ✨ Gemini AI will generate unique, personalized emails for each creator with campaign details
                         </p>
-                      )}
+                      </div>
                     </div>
+                  )}
+                </DialogHeader>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="bulk-subject" className="flex items-center gap-2">
-                        🤖 AI-Generated Subject Lines
-                        <Badge variant="secondary" className="text-xs">
-                          Powered by Gemini
-                        </Badge>
-                      </Label>
-                      <Input
-                        id="bulk-subject"
-                        value={bulkFormData.subject}
-                        onChange={(e) => setBulkFormData(prev => ({ ...prev, subject: e.target.value }))}
-                        placeholder="AI will generate personalized subjects for each creator"
-                        className="rounded-xl bg-gray-50"
-                        disabled
-                      />
-                      <p className="text-xs text-blue-600">
-                        🎯 AI will create unique subject lines based on each creator's content and campaign details
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bulk-body" className="flex items-center gap-2">
-                        🤖 AI-Generated Email Content
-                        <Badge variant="secondary" className="text-xs">
-                          Powered by Gemini
-                        </Badge>
-                      </Label>
-                      <Textarea
-                        id="bulk-body"
-                        value={bulkFormData.body}
-                        onChange={(e) => setBulkFormData(prev => ({ ...prev, body: e.target.value }))}
-                        placeholder="AI will generate personalized email content..."
-                        rows={12}
-                        className="rounded-xl bg-gray-50"
-                        disabled
-                      />
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="text-xs text-green-800 font-medium mb-2">
-                          ✨ Gemini AI will generate personalized emails for your review:
-                        </p>
-                        <ul className="text-xs text-green-700 space-y-1">
-                          <li>• Creator-specific content references</li>
-                          <li>• Complete campaign details and budget</li>
-                          <li>• Professional tone matching their audience</li>
-                          <li>• Preview and edit before sending</li>
-                          <li>• Approve individual or all emails</li>
-                        </ul>
+                {selectedCreators.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="bg-[#FFE600] bg-opacity-10 p-4 rounded-xl">
+                      <h3 className="font-semibold text-[#222222] mb-2 flex items-center">
+                        <Users className="w-4 h-4 mr-2" />
+                        Selected Creators ({selectedCreators.length})
+                      </h3>
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                        {selectedCreators.map((creator, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            {creator.name}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCreators(prev => prev.filter((_, i) => i !== index))}
+                              className="ml-1 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ))}
                       </div>
                     </div>
 
-                    <div className="flex justify-end space-x-2 pt-4">
+                    <form onSubmit={handleBulkOutreach} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="bulk-campaign">Campaign</Label>
+                        <Select 
+                          value={bulkFormData.campaignId}
+                          onValueChange={(value) => setBulkFormData(prev => ({ ...prev, campaignId: value }))}
+                          required
+                        >
+                          <SelectTrigger className="rounded-xl">
+                            <SelectValue placeholder="Select campaign" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {campaigns.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                {showMockData && mockData.campaign ? mockData.campaign.name : "No campaigns available"}
+                              </SelectItem>
+                            ) : (
+                              campaigns.map((campaign) => (
+                                <SelectItem key={campaign.id} value={campaign.id}>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{campaign.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      Budget: ${campaign.budget?.toLocaleString()} • Status: {campaign.status}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {bulkFormData.campaignId && (
+                          <p className="text-xs text-green-600 flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            Campaign pre-selected from workflow
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bulk-subject" className="flex items-center gap-2">
+                          🤖 AI-Generated Subject Lines
+                          <Badge variant="secondary" className="text-xs">
+                            Powered by Gemini
+                          </Badge>
+                        </Label>
+                        <Input
+                          id="bulk-subject"
+                          value={bulkFormData.subject}
+                          onChange={(e) => setBulkFormData(prev => ({ ...prev, subject: e.target.value }))}
+                          placeholder="AI will generate personalized subjects for each creator"
+                          className="rounded-xl bg-gray-50"
+                          disabled
+                        />
+                        <p className="text-xs text-blue-600">
+                          🎯 AI will create unique subject lines based on each creator's content and campaign details
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bulk-body" className="flex items-center gap-2">
+                          🤖 AI-Generated Email Content
+                          <Badge variant="secondary" className="text-xs">
+                            Powered by Gemini
+                          </Badge>
+                        </Label>
+                        <Textarea
+                          id="bulk-body"
+                          value={bulkFormData.body}
+                          onChange={(e) => setBulkFormData(prev => ({ ...prev, body: e.target.value }))}
+                          placeholder="AI will generate personalized email content..."
+                          rows={12}
+                          className="rounded-xl bg-gray-50"
+                          disabled
+                        />
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <p className="text-xs text-green-800 font-medium mb-2">
+                            ✨ Gemini AI will generate personalized emails for your review:
+                          </p>
+                          <ul className="text-xs text-green-700 space-y-1">
+                            <li>• Creator-specific content references</li>
+                            <li>• Complete campaign details and budget</li>
+                            <li>• Professional tone matching their audience</li>
+                            <li>• Preview and edit before sending</li>
+                            <li>• Approve individual or all emails</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end space-x-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setIsCreateDialogOpen(false);
+                            setSelectedCreators([]);
+                          }}
+                          className="rounded-xl"
+                        >
+                          Cancel
+                        </Button>
+                                              <Button 
+                          type="submit"
+                          disabled={isGeneratingEmails}
+                          className="bg-[#FFE600] hover:bg-[#E6CF00] text-[#222222] rounded-xl font-semibold"
+                        >
+                          {isGeneratingEmails ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              🤖 Generating emails for {selectedCreators.length} creators...
+                            </>
+                          ) : (
+                            <>
+              <Zap className="w-4 h-4 mr-2" />
+                              🤖 Generate AI Emails for Review
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                ) : (
+                  <form onSubmit={handleCreateEmail} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="campaign">Campaign</Label>
+                        <Select onValueChange={(value) => setFormData(prev => ({ ...prev, campaignId: value }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select campaign" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {campaigns.map((campaign) => (
+                              <SelectItem key={campaign.id} value={campaign.id}>
+                                {campaign.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="template">Template (Optional)</Label>
+                        <Select onValueChange={handleTemplateChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {templates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="creatorId">Creator ID</Label>
+                      <Input
+                        id="creatorId"
+                        value={formData.creatorId}
+                        onChange={(e) => setFormData(prev => ({ ...prev, creatorId: e.target.value }))}
+                        placeholder="Enter creator ID"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="subject">Subject</Label>
+                      <Input
+                        id="subject"
+                        value={formData.subject}
+                        onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                        placeholder="Email subject"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="body">Message</Label>
+                      <Textarea
+                        id="body"
+                        value={formData.body}
+                        onChange={(e) => setFormData(prev => ({ ...prev, body: e.target.value }))}
+                        placeholder="Your outreach message..."
+                        rows={6}
+                        required
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => {
-                          setIsCreateDialogOpen(false);
-                          setSelectedCreators([]);
-                        }}
-                        className="rounded-xl"
+                        onClick={() => setIsCreateDialogOpen(false)}
                       >
                         Cancel
-                      </Button>
-                                            <Button 
-                        type="submit"
-                        disabled={isGeneratingEmails}
-                        className="bg-[#FFE600] hover:bg-[#E6CF00] text-[#222222] rounded-xl font-semibold"
-                      >
-                        {isGeneratingEmails ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            🤖 Generating emails for {selectedCreators.length} creators...
-                          </>
-                        ) : (
-                          <>
-            <Zap className="w-4 h-4 mr-2" />
-                            🤖 Generate AI Emails for Review
-                          </>
-                        )}
-                      </Button>
+            </Button>
+                      <Button type="submit">Create Email</Button>
                     </div>
                   </form>
-                </div>
-              ) : (
-                // Single email form (existing code)
-                <form onSubmit={handleCreateEmail} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="campaign">Campaign</Label>
-                      <Select onValueChange={(value) => setFormData(prev => ({ ...prev, campaignId: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select campaign" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {campaigns.map((campaign) => (
-                            <SelectItem key={campaign.id} value={campaign.id}>
-                              {campaign.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="template">Template (Optional)</Label>
-                      <Select onValueChange={handleTemplateChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {templates.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="creatorId">Creator ID</Label>
-                    <Input
-                      id="creatorId"
-                      value={formData.creatorId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, creatorId: e.target.value }))}
-                      placeholder="Enter creator ID"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="subject">Subject</Label>
-                    <Input
-                      id="subject"
-                      value={formData.subject}
-                      onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
-                      placeholder="Email subject"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="body">Message</Label>
-                    <Textarea
-                      id="body"
-                      value={formData.body}
-                      onChange={(e) => setFormData(prev => ({ ...prev, body: e.target.value }))}
-                      placeholder="Your outreach message..."
-                      rows={6}
-                      required
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsCreateDialogOpen(false)}
-                    >
-                      Cancel
-          </Button>
-                    <Button type="submit">Create Email</Button>
-                  </div>
-                </form>
-              )}
-            </DialogContent>
-          </Dialog>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        {/* Tabs Navigation */}
         <Tabs defaultValue="outreach" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="outreach">Outreach</TabsTrigger>
-            <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+            <TabsTrigger value="pipeline">Negotiation Flow</TabsTrigger>
             <TabsTrigger value="crm">CRM</TabsTrigger>
             <TabsTrigger value="ai-approvals">AI Approvals</TabsTrigger>
-            <TabsTrigger value="debug">Debug</TabsTrigger>
           </TabsList>
 
           <TabsContent value="outreach" className="space-y-6">
-        {/* Stats */}
             <div className="grid md:grid-cols-4 gap-6">
           <Card className="p-6 rounded-2xl border border-gray-200">
             <div className="flex items-center justify-between mb-4">
@@ -1037,14 +1054,17 @@ The AI will automatically include all campaign information and create compelling
           </Card>
         </div>
 
-        {/* Email List */}
         <Card className="rounded-2xl border border-gray-200">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-[#222222]">Recent Emails</CardTitle>
-            <CardDescription>Track your outreach emails and responses</CardDescription>
+            <CardTitle className="text-2xl font-bold text-[#222222]">
+              {showMockData ? "Mock Outreach Email" : "Recent Emails"}
+            </CardTitle>
+            <CardDescription>
+              {showMockData ? `Displaying the initial outreach email from mock data for campaign: ${mockData.campaign.name}` : "Track your outreach emails and responses"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {emails.length === 0 ? (
+            {emails.length === 0 && !showMockData ? (
               <div className="text-center py-8">
                 <Mail className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No emails yet</h3>
@@ -1055,12 +1075,12 @@ The AI will automatically include all campaign information and create compelling
                   <Plus className="mr-2 h-4 w-4" />
                   Create First Email
                 </Button>
-          </div>
+              </div>
             ) : (
               <div className="space-y-4">
                 {emails.map((email) => (
                   <div key={email.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-semibold text-gray-900">{email.subject}</h4>
@@ -1072,12 +1092,12 @@ The AI will automatically include all campaign information and create compelling
                         <p className="text-sm text-gray-600 line-clamp-2 mb-2">{email.body}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>Campaign: {campaigns.find(c => c.id === email.campaignId)?.name || 'Unknown'}</span>
-                          <span>Creator: {email.creatorId}</span>
+                          <span>Creator: {showMockData ? mockData.creator.channelName : email.creatorId}</span>
                           {email.sentAt && <span>Sent: {new Date(email.sentAt).toLocaleDateString()}</span>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {email.status === 'draft' && (
+                        {email.status === 'draft' && !showMockData && (
                           <Button
                             size="sm"
                             onClick={() => handleSendEmail(email.id)}
@@ -1098,7 +1118,70 @@ The AI will automatically include all campaign information and create compelling
           </TabsContent>
 
           <TabsContent value="pipeline" className="space-y-6">
-            <EmailPipeline />
+            {showMockData ? (
+              <Card className="rounded-2xl border border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-[#222222] flex items-center gap-2">
+                    <MessageSquare className="w-6 h-6 text-[#FFE600]" />
+                    Mock Negotiation Flow with {mockData.creator.channelName}
+                  </CardTitle>
+                  <CardDescription>
+                    Campaign: {mockData.campaign.name} | Status: {mockData.conversation.stage}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 p-6 max-h-[70vh] overflow-y-auto">
+                  {mockData.conversation.messages.map((message, index) => {
+                    const isUser = message.sender_type === 'user';
+                    const isSystem = message.sender_type === 'system';
+                    const isCreator = message.sender_type === 'creator';
+                    const timestamp = message.sent_at || message.received_at || message.created_at;
+
+                    return (
+                      <div key={message.id || index} className={`flex flex-col ${isUser || isSystem ? 'items-end' : 'items-start'}`}>
+                        <div className={`max-w-[70%] p-3 rounded-xl shadow-sm ${
+                          isUser ? 'bg-[#FFE600] text-[#222222] rounded-br-none' : 
+                          isSystem ? 'bg-blue-500 text-white rounded-br-none' :
+                          'bg-gray-100 text-gray-800 rounded-bl-none'
+                        }`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            {isUser && <Briefcase className="w-4 h-4" />}
+                            {isSystem && <Sparkles className="w-4 h-4" />}
+                            {isCreator && <UserCircle className="w-4 h-4" />}
+                            <span className="font-semibold text-sm">
+                              {isUser ? mockData.user.name : isSystem ? "AI Assistant" : mockData.creator.channelName}
+                            </span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{message.content_text}</p>
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="mt-2">
+                              {message.attachments.map((att, attIndex) => (
+                                <a 
+                                  key={attIndex} 
+                                  href={att.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                  <GitBranch className="w-3 h-3" />
+                                  {att.fileName}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {timestamp && (
+                          <p className={`text-xs text-gray-400 mt-1 ${isUser || isSystem ? 'text-right' : 'text-left'}`}>
+                            {new Date(timestamp).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            ) : (
+              <EmailPipeline />
+            )}
           </TabsContent>
 
           <TabsContent value="crm" className="space-y-6">
@@ -1108,13 +1191,8 @@ The AI will automatically include all campaign information and create compelling
           <TabsContent value="ai-approvals" className="space-y-6">
             <PendingApprovals onUpdate={loadData} />
           </TabsContent>
-
-          <TabsContent value="debug" className="space-y-6">
-            <EmailDebugPanel />
-          </TabsContent>
         </Tabs>
 
-        {/* Email Preview Dialog */}
         <EmailPreviewDialog
           emails={generatedEmails}
           isOpen={isPreviewOpen}
