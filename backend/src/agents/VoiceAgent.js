@@ -134,22 +134,32 @@ INSTRUCTIONS:
   }
 
   // Generate speech from text using Sarvam AI
-  async processTextToSpeech(text, languageCode, speaker) {
+  async processTextToSpeech(text, languageCode, voiceKey) {
     try {
       this.addLog(`Processing TTS for text: "${text.substring(0, 50)}..."`);
 
-      const audioBuffer = await this.sarvamAI.textToSpeech(text, languageCode, speaker, {
-        pitch: 0,
-        pace: 1,
-        loudness: 1,
-        sampleRate: 22050
-      });
+      // Ensure we have a proper voice key format (e.g., 'en-IN-vidya')
+      let actualVoiceKey = voiceKey;
+      if (!voiceKey || !voiceKey.includes('-')) {
+        // If voiceKey is just a speaker name, construct the full key
+        actualVoiceKey = `${languageCode}-${voiceKey || 'vidya'}`;
+      }
 
-      if (audioBuffer) {
-        this.addLog(`TTS successful for speaker: ${speaker}, generated ${audioBuffer.length} bytes`);
-        return audioBuffer;
+      this.addLog(`Using voice key: ${actualVoiceKey}`);
+
+      // Call Sarvam AI with correct parameter order: (text, voiceKey, languageCode)
+      const result = await this.sarvamAI.textToSpeech(text, actualVoiceKey, languageCode);
+
+      if (result && result.success && result.audioData) {
+        this.addLog(`TTS successful for voice: ${actualVoiceKey}, generated audio data`);
+        
+        // Convert base64 string to buffer if needed
+        if (typeof result.audioData === 'string') {
+          return Buffer.from(result.audioData, 'base64');
+        }
+        return result.audioData;
       } else {
-        this.addLog('TTS failed - no audio buffer returned', 'warn');
+        this.addLog('TTS failed - no audio data returned', 'warn');
         return null;
       }
 
@@ -276,8 +286,8 @@ INSTRUCTIONS:
 
       // Step 3: Text to Speech
       const ttsStart = Date.now();
-      const speaker = negotiation.voiceKey || 'en-IN-vidya';
-      const audioResponse = await this.processTextToSpeech(aiResponse, languageCode, speaker);
+      const voiceKey = negotiation.voiceKey || 'en-IN-vidya';
+      const audioResponse = await this.processTextToSpeech(aiResponse, languageCode, voiceKey);
       const ttsTime = Date.now() - ttsStart;
 
       // Update negotiation transcript
