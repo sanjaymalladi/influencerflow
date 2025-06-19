@@ -9,7 +9,8 @@ WORKDIR /app
 
 # Copy dependency files
 COPY package*.json ./
-# Install dependencies
+# Install dependencies with Puppeteer skip download
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 RUN npm ci --omit=dev && npm cache clean --force
 
 # Development image, copy all the files and run the dev server
@@ -25,6 +26,7 @@ FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 # Don't run production as root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 influencerflow
