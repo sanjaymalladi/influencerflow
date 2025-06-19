@@ -4,13 +4,13 @@ const { v4: uuidv4 } = require('uuid');
 // --- Configuration & Mock Data ---
 const MOCK_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
 // IMPORTANT: Replace 'YOUR_ACTUAL_CAMPAIGN_UUID_HERE' with a real UUID from your 'campaigns' table
-const MOCK_CAMPAIGN_ID = 'YOUR_ACTUAL_CAMPAIGN_UUID_HERE'; 
+const MOCK_CAMPAIGN_ID = 'bd812580-77cd-41ee-ab86-233ab375274e'; 
 const MOCK_CREATOR_ID = '01cc9cc7-143e-47d2-bbc6-1dedbc20187c'; // Ensure this UUID exists in your 'creators' table
 
 const MOCK_OUTREACH_EMAIL_ID = uuidv4(); // Generate a new UUID for the outreach email
 const MOCK_OUTREACH_EMAIL_EXTERNAL_ID = 'mock_external_' + uuidv4().slice(0,12); // Gmail message ID can be a string
 
-const MOCK_USER_EMAIL = 'user@example.com';
+const MOCK_USER_EMAIL = 'sanjaymallladi12@gmail.com';
 const MOCK_CREATOR_EMAIL = 'malladisanjay29@gmail.com';
 
 const mockThreadId = `mock_thread_sanjay_negotiation_${uuidv4().slice(0,8)}`;

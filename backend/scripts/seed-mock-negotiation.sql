@@ -5,9 +5,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- IMPORTANT: Replace these placeholder UUIDs with actual UUIDs from your database!
 DO $$ 
 DECLARE 
-    mock_user_id UUID := '550e8400-e29b-41d4-a716-446655440000'; -- Ensure this user exists in your 'users' table AND IS THE USER YOU ARE VIEWING THE FRONTEND AS or that the frontend queries for.
-    mock_campaign_id UUID := 'bd812580-77cd-41ee-ab86-233ab375274e'; -- Ensure this campaign exists and the UUID is correct, and is one the frontend would display.
-    mock_creator_id UUID := '01cc9cc7-143e-47d2-bbc6-1dedbc20187c'; -- Ensure this creator exists.
+    user_id UUID := '550e8400-e29b-41d4-a716-446655440000'; -- Ensure this user exists in your 'users' table AND IS THE USER YOU ARE VIEWING THE FRONTEND AS or that the frontend queries for.
+    campaign_id UUID := 'bd812580-77cd-41ee-ab86-233ab375274e'; -- Ensure this campaign exists and the UUID is correct, and is one the frontend would display.
+    creator_id UUID := '01cc9cc7-143e-47d2-bbc6-1dedbc20187c'; -- Ensure this creator exists.
 
     -- Generated IDs for this run
     v_outreach_email_id UUID := uuid_generate_v4();

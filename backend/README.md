@@ -1,131 +1,358 @@
-# InfluencerFlow Backend
+# InfluencerFlow Calling Agent
 
-> Express.js API server with Supabase integration for the InfluencerFlow platform
+An AI-powered voice calling system for automated influencer negotiations using LiveKit, Sarvam AI, and Twilio.
 
-## 🚀 Quick Start
+## 🚀 Features
 
-### Environment Variables
+- **Voice Negotiations**: Automated phone-based negotiations with influencers
+- **Multi-language Support**: Support for Indian languages via Sarvam AI
+- **Real-time Communication**: LiveKit integration for seamless voice streaming
+- **Intent Analysis**: AI-powered analysis of conversation intent and sentiment
+- **Negotiation Strategies**: Multiple negotiation approaches (collaborative, competitive, accommodating, compromising)
+- **Call Management**: Full call lifecycle management with status tracking
+- **Transcript Generation**: Real-time conversation transcription and analysis
+
+## 🛠 Tech Stack
+
+- **Backend**: Node.js, Express.js
+- **Voice Calling**: Twilio
+- **Real-time Communication**: LiveKit
+- **Speech Processing**: Sarvam AI (STT/TTS)
+- **AI/LLM**: Google Gemini
+- **Database**: MongoDB (optional)
+- **Caching**: Redis (optional)
+
+## 📋 Prerequisites
+
+- Node.js 18.0+
+- Twilio account with phone number
+- Sarvam AI API key
+- LiveKit server setup
+- Google Gemini API key
+
+## 🔧 Installation
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd backend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Set up environment variables**
+```bash
+cp env.example .env
+# Edit .env with your actual credentials
+```
+
+4. **Start the server**
+```bash
+# Development mode
+npm run dev
+
+# Production mode
+npm start
+```
+
+## 🔑 Environment Configuration
+
 Create a `.env` file with the following variables:
 
 ```env
-# Database
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-
-# Authentication
-JWT_SECRET=your_jwt_secret_key
-
-# Email Integration
-GMAIL_CLIENT_ID=your_gmail_client_id
-GMAIL_CLIENT_SECRET=your_gmail_client_secret
-GMAIL_REFRESH_TOKEN=your_gmail_refresh_token
-
 # Server Configuration
-PORT=5000
+PORT=3001
 NODE_ENV=development
-FRONTEND_URL=http://localhost:5173
+BASE_URL=http://localhost:3001
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+
+# Sarvam AI Configuration
+SARVAM_API_KEY=your_sarvam_ai_api_key
+
+# LiveKit Configuration
+LIVEKIT_URL=wss://your-livekit-server.com
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+
+# Google Gemini AI Configuration
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-### Installation
-```bash
-npm install
-npm run dev
-```
+## 📚 API Documentation
 
-## 📡 API Endpoints
+### Initiate Negotiation Call
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `GET /api/auth/profile` - Get user profile
+**POST** `/api/calling/initiate`
 
-### Creators
-- `GET /api/creators` - Get saved creators
-- `POST /api/creators` - Save a creator
-- `PUT /api/creators/:id` - Update creator
-- `DELETE /api/creators/:id` - Delete creator
-- `GET /api/creators/search` - Search creators
-
-### Campaigns
-- `GET /api/campaigns` - Get campaigns
-- `POST /api/campaigns` - Create campaign
-- `PUT /api/campaigns/:id` - Update campaign
-- `DELETE /api/campaigns/:id` - Delete campaign
-
-### Outreach
-- `GET /api/outreach/emails` - Get emails
-- `POST /api/outreach/send` - Send email
-- `GET /api/outreach/templates` - Get templates
-
-### Automation
-- `POST /api/automation/contracts` - Generate contracts
-- `GET /api/automation/conversations` - Get conversations
-
-### Admin
-- `POST /api/setup-demo` - Setup demo user and data (requires service key)
-
-## 🔧 Setup Demo Data
-
-To populate the database with demo creators, call the setup endpoint:
+Start a new negotiation call with an influencer.
 
 ```bash
-curl -X POST http://localhost:5000/api/setup-demo
+curl -X POST http://localhost:3001/api/calling/initiate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "creatorPhone": "+1234567890",
+    "creatorName": "John Doe",
+    "campaignTitle": "Summer Fashion Campaign",
+    "negotiationContext": {
+      "budget": 5000,
+      "deliverables": ["Instagram posts", "Stories"],
+      "timeline": "2 weeks"
+    },
+    "strategy": "collaborative"
+  }'
 ```
 
-This will:
-1. Create a demo user in Supabase Auth
-2. Add sample creators to the database
-3. Setup initial data for testing
+**Response:**
+```json
+{
+  "success": true,
+  "callSid": "CA1234567890abcdef",
+  "negotiationId": "NEG-1234567890",
+  "roomName": "negotiation-1234567890",
+  "creatorToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "status": "call_initiated"
+}
+```
 
-## 🐳 Docker Deployment
+### Get Active Calls
 
-The backend includes a Dockerfile for containerized deployment:
+**GET** `/api/calling/active-calls`
+
+Retrieve list of currently active calls.
 
 ```bash
-docker build -t influencerflow-backend .
-docker run -p 5000:5000 influencerflow-backend
+curl http://localhost:3001/api/calling/active-calls
 ```
 
-## 📊 Database Schema
+### Get Negotiation Details
 
-The API uses Supabase (PostgreSQL) with these main tables:
-- `users` - User authentication and profiles
-- `creators` - Influencer data and analytics
-- `campaigns` - Marketing campaigns
-- `outreach_emails` - Email tracking
-- `conversations` - AI conversation analysis
+**GET** `/api/calling/negotiation/:negotiationId`
 
-See `../database-schema.sql` for the complete schema.
+Get detailed information about a specific negotiation.
 
-## 🛡️ Security Features
-
-- JWT authentication
-- Rate limiting (100 requests per 15 minutes)
-- CORS protection
-- Input validation
-- Password hashing with bcrypt
-- Environment variable protection
-
-## 📝 Development
-
-### Scripts
-- `npm run dev` - Development server with nodemon
-- `npm start` - Production server
-- `npm test` - Run tests (if available)
-
-### Project Structure
-```
-src/
-├── config/          # Configuration files
-├── middleware/      # Express middleware
-├── routes/         # API route handlers
-├── services/       # Business logic
-└── index.js        # Main server file
+```bash
+curl http://localhost:3001/api/calling/negotiation/NEG-1234567890
 ```
 
-## 🌐 Production Deployment
+### Process Audio
 
-The backend is configured for deployment on Render with automatic Docker builds.
+**POST** `/api/calling/process-audio`
 
-Environment variables are managed through the Render dashboard and `render.yaml` configuration. 
+Process audio data for speech-to-text and generate AI response.
+
+```bash
+curl -X POST http://localhost:3001/api/calling/process-audio \
+  -H "Content-Type: application/json" \
+  -d '{
+    "audioData": "base64_encoded_audio_data",
+    "languageCode": "en-IN",
+    "negotiationId": "NEG-1234567890"
+  }'
+```
+
+### End Negotiation
+
+**POST** `/api/calling/end-negotiation/:negotiationId`
+
+Manually end a negotiation session.
+
+```bash
+curl -X POST http://localhost:3001/api/calling/end-negotiation/NEG-1234567890 \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "manual_end"}'
+```
+
+## 🎯 Usage Examples
+
+### Basic Call Initiation
+
+```javascript
+const axios = require('axios');
+
+const initiateCall = async () => {
+  try {
+    const response = await axios.post('http://localhost:3001/api/calling/initiate', {
+      creatorPhone: '+91-9876543210',
+      creatorName: 'Priya Sharma',
+      campaignTitle: 'Diwali Special Campaign',
+      negotiationContext: {
+        budget: 25000,
+        deliverables: ['Instagram Reels', 'Story Posts', 'IGTV'],
+        timeline: '10 days',
+        targetAudience: 'Fashion enthusiasts aged 18-35'
+      },
+      strategy: 'collaborative'
+    });
+    
+    console.log('Call initiated:', response.data);
+  } catch (error) {
+    console.error('Error:', error.response.data);
+  }
+};
+
+initiateCall();
+```
+
+### Monitor Call Status
+
+```javascript
+const getCallStatus = async (negotiationId) => {
+  try {
+    const response = await axios.get(`http://localhost:3001/api/calling/negotiation/${negotiationId}`);
+    console.log('Negotiation status:', response.data.negotiation.status);
+    console.log('Transcript:', response.data.negotiation.transcript);
+  } catch (error) {
+    console.error('Error:', error.response.data);
+  }
+};
+```
+
+## 🧠 AI Components
+
+### Speech-to-Text (Sarvam AI)
+
+The system uses Sarvam AI's speech recognition for:
+- Multi-language support (Hindi, English, Tamil, Telugu, etc.)
+- Code-mixed language processing
+- Real-time transcription
+
+### Text-to-Speech (Sarvam AI)
+
+Natural voice synthesis with:
+- Multiple voice options (Anushka, Manisha, Vidya, etc.)
+- Emotional tone control
+- Regional accent support
+
+### Intent Analysis
+
+The system analyzes conversation for:
+- **Accept**: Agreement or positive response
+- **Reject**: Disagreement or negative response  
+- **Counteroffer**: Alternative proposal
+- **Question**: Information seeking
+- **Clarification**: Need for more details
+
+### Negotiation Strategies
+
+- **Collaborative**: Win-win approach
+- **Competitive**: Maximize client value
+- **Accommodating**: Flexible and understanding
+- **Compromising**: Middle-ground solutions
+
+## 🔄 Call Flow
+
+1. **Initiation**: API call starts negotiation process
+2. **Twilio Call**: Automated phone call to creator
+3. **LiveKit Connection**: Real-time audio streaming setup
+4. **AI Conversation**: Sarvam AI processes speech/generates responses
+5. **Intent Analysis**: Gemini AI analyzes conversation context
+6. **Response Generation**: Context-aware responses
+7. **Call Completion**: Summary and next steps generation
+
+## 🛡️ Security & Privacy
+
+- All API endpoints are rate-limited
+- Audio data is processed in real-time (not stored)
+- Conversation transcripts can be encrypted
+- GDPR-compliant data handling
+- Secure token-based authentication for LiveKit
+
+## 📊 Monitoring & Logging
+
+The system provides comprehensive logging for:
+- Call initiation and completion
+- Speech processing results
+- Intent analysis accuracy
+- System performance metrics
+- Error tracking and debugging
+
+View logs:
+```bash
+curl http://localhost:3001/api/calling/logs
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **Call not connecting**
+   - Check Twilio credentials
+   - Verify phone number format
+   - Ensure webhook URLs are accessible
+
+2. **Speech recognition failing**
+   - Verify Sarvam AI API key
+   - Check audio format compatibility
+   - Ensure stable internet connection
+
+3. **LiveKit connection issues**
+   - Confirm LiveKit server is running
+   - Check API key/secret configuration
+   - Verify firewall settings
+
+### Debug Mode
+
+Enable debug logging:
+```env
+LOG_LEVEL=debug
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue on GitHub
+- Email: support@influencerflow.com
+- Documentation: [Context7 Docs](https://context7.ai)
+
+## 🚀 Deployment
+
+### Production Setup
+
+1. **Environment Variables**: Set all production credentials
+2. **SSL Certificates**: Enable HTTPS for webhooks
+3. **Database**: Configure MongoDB/Redis for persistence
+4. **Monitoring**: Set up logging and monitoring tools
+5. **Scaling**: Use PM2 or Docker for process management
+
+### Docker Deployment
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+### Health Check
+
+**GET** `/api/health`
+
+```bash
+curl http://localhost:3001/api/health
+```
+
+---
+
+**Built with ❤️ by the InfluencerFlow Team** 
