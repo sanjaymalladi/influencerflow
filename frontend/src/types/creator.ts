@@ -133,6 +133,27 @@ export interface CreatorProfile {
   engagementRate: string | null;
   popularVideos?: YouTubeVideo[];
   dataSource: 'YouTube' | 'Gemini' | 'Hybrid (YouTube primary)' | 'Gemini (YouTube lookup failed)';
+  
+  // AI Enhancement Fields
+  isAiEnhanced?: boolean;
+  matchReasoning?: string;
+  collaborationType?: string;
+  estimatedReach?: string;
+  campaignImpact?: string;
+  challenges?: string;
+  aiRecommendation?: string;
+  stats?: {
+    avgViewsPerVideo?: number | string;
+    engagementRate?: string;
+    totalViews?: number;
+    videosUploaded?: number;
+    subscriberGrowth?: string;
+  };
+  estimatedPricing?: {
+    sponsoredVideo?: number;
+    sponsored_post?: number;
+    currency?: string;
+  };
 }
 
 // Intermediate type for what Gemini service returns

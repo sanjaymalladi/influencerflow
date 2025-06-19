@@ -162,11 +162,11 @@ Desktop.ini
 # PM2 ecosystem file
 ecosystem.config.js
 
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
-docker-compose.*.yml
+# Docker (Keep Docker files in repo for deployment)
+# .dockerignore
+# Dockerfile
+# docker-compose.yml
+# docker-compose.*.yml
 
 # Backup files
 *.backup

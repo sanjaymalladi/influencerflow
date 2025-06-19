@@ -1,41 +1,23 @@
-const { google } = require('googleapis');
-const { MailerSend, Recipient, EmailParams } = require('mailersend');
 const { v4: uuidv4 } = require('uuid');
-const gmailService = require('./gmailService');
+const sendGridService = require('./sendGridService');
 
 class EmailService {
   constructor() {
-    this.gmailClient = null;
-    this.mailerSend = null;
+    this.initialized = false;
     this.initializeServices();
   }
 
   async initializeServices() {
-    // Initialize Gmail API
-    if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET) {
-      this.oauth2Client = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET,
-        process.env.GMAIL_REDIRECT_URI
-      );
-
-      if (process.env.GMAIL_REFRESH_TOKEN) {
-        this.oauth2Client.setCredentials({
-          refresh_token: process.env.GMAIL_REFRESH_TOKEN
-        });
-        
-        this.gmailClient = google.gmail({
-          version: 'v1',
-          auth: this.oauth2Client
-        });
+    try {
+      // Only initialize SendGrid - our primary email provider
+      if (sendGridService.getStatus().initialized) {
+        this.initialized = true;
+        console.log('✅ Email Service initialized with SendGrid');
+      } else {
+        console.warn('⚠️ SendGrid not available, email service not fully initialized');
       }
-    }
-
-    // Initialize MailerSend
-    if (process.env.MAILERSEND_API_KEY) {
-      this.mailerSend = new MailerSend({
-        apiKey: process.env.MAILERSEND_API_KEY,
-      });
+    } catch (error) {
+      console.error('❌ Failed to initialize Email Service:', error);
     }
   }
 
@@ -49,262 +31,207 @@ class EmailService {
     return `${process.env.API_URL}/api/email/track/click/${emailId}?url=${encodeURIComponent(originalUrl)}`;
   }
 
-  // Send email via Gmail API
-  async sendViaGmail(emailData) {
-    if (!this.gmailClient) {
-      throw new Error('Gmail API not configured');
-    }
-
-    const { to, subject, body, trackingId } = emailData;
-    
-    // Add tracking pixel to email body
-    const trackingPixel = this.generateTrackingPixel(trackingId);
-    const trackedBody = body + trackingPixel;
-
-    const email = [
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      'Content-Type: text/html; charset=utf-8',
-      '',
-      trackedBody
-    ].join('\n');
-
-    const encodedEmail = Buffer.from(email).toString('base64');
-
-    try {
-      const result = await this.gmailClient.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: encodedEmail
-        }
-      });
-
-      return {
-        success: true,
-        messageId: result.data.id,
-        provider: 'gmail'
-      };
-    } catch (error) {
-      console.error('Gmail send error:', error);
-      throw error;
-    }
-  }
-
-  // Send email via MailerSend
-  async sendViaMailerSend(emailData) {
-    if (!this.mailerSend) {
-      throw new Error('MailerSend not configured');
-    }
-
-    const { to, subject, body, trackingId, from, fromName } = emailData;
-    
-    // Add tracking pixel to email body
-    const trackingPixel = this.generateTrackingPixel(trackingId);
-    const trackedBody = body + trackingPixel;
-
-    // Create recipients array
-    const recipients = [new Recipient(to, to.split('@')[0])];
-
-    // Create email parameters using the correct API structure
-    const emailParams = new EmailParams();
-    
-    // Set email properties
-    emailParams.from = {
-      email: from || process.env.MAILERSEND_FROM_EMAIL || 'noreply@influencerflow.com',
-      name: fromName || process.env.MAILERSEND_FROM_NAME || 'InfluencerFlow'
-    };
-    
-    emailParams.to = recipients;
-    emailParams.subject = subject;
-    emailParams.html = trackedBody;
-    emailParams.text = body.replace(/<[^>]*>/g, ''); // Strip HTML for text version
-
-    try {
-      const result = await this.mailerSend.email.send(emailParams);
-      
-      return {
-        success: true,
-        messageId: result?.data?.messageId || 'mailersend-' + Date.now(),
-        provider: 'mailersend'
-      };
-    } catch (error) {
-      console.error('MailerSend send error:', error);
-      throw error;
-    }
-  }
-
-  // Main send email method
+  // Main send email method - SendGrid only
   async sendEmail(emailData) {
     const trackingId = emailData.customEmailId || uuidv4();
     const dataWithTracking = { ...emailData, trackingId };
 
     try {
-      // Priority 1: Try Gmail API service first (with reply detection)
-      try {
-        // Lazy load to avoid circular dependency
-        const gmailSvc = require('./gmailService');
-        if (gmailSvc && gmailSvc.isReady && gmailSvc.isReady()) {
-          console.log('🥇 Sending via Gmail API service (Priority 1)...');
-          const result = await gmailSvc.sendEmail(dataWithTracking);
-          return {
-            success: true,
-            messageId: result.messageId,
-            provider: 'gmail',
-            trackingId: trackingId
-          };
-        }
-      } catch (e) {
-        console.log('⚠️ Gmail service not ready, trying fallback...');
+      // Check if SendGrid is available
+      if (!sendGridService.getStatus().initialized) {
+        throw new Error('SendGrid email service not initialized');
       }
 
-      // Priority 2: Fallback to legacy Gmail implementation
-      if (this.gmailClient) {
-        console.log('🥈 Sending via legacy Gmail API (Priority 2)...');
-        return await this.sendViaGmail(dataWithTracking);
-      } 
+      console.log('📧 Sending email via SendGrid...');
+      const result = await sendGridService.sendEmail(dataWithTracking);
 
-      // Priority 3: Fallback to MailerSend
-      if (this.mailerSend) {
-        console.log('🥉 Sending via MailerSend (Priority 3)...');
-        return await this.sendViaMailerSend(dataWithTracking);
-      } 
-
-      throw new Error('No email service configured');
+      return {
+        success: true,
+        messageId: result.messageId,
+        provider: 'sendgrid',
+        trackingId: trackingId,
+        statusCode: result.statusCode
+      };
 
     } catch (error) {
-      console.error('Primary email service failed:', error);
+      console.error('❌ SendGrid email sending failed:', error);
       
-      // Emergency fallback chain
-      try {
-        if (this.mailerSend) {
-          console.log('🆘 Emergency fallback: MailerSend...');
-          return await this.sendViaMailerSend(dataWithTracking);
-        } else if (this.gmailClient) {
-          console.log('🆘 Emergency fallback: Legacy Gmail...');
-          return await this.sendViaGmail(dataWithTracking);
-        }
-      } catch (fallbackError) {
-        console.error('All email services failed:', fallbackError);
-      }
-      
-      throw error;
+      // Log the error but don't fall back to other providers
+      throw new Error(`Email sending failed: ${error.message}`);
     }
   }
 
-  // Get Gmail messages (for reply tracking)
-  async getGmailMessages(query = '', maxResults = 10) {
-    if (!this.gmailClient) {
-      throw new Error('Gmail API not configured');
-    }
-
+  // Send multiple emails
+  async sendMultipleEmails(emailsData) {
     try {
-      const response = await this.gmailClient.users.messages.list({
-        userId: 'me',
-        q: query,
-        maxResults
-      });
-
-      if (!response.data.messages) {
-        return [];
+      if (!sendGridService.getStatus().initialized) {
+        throw new Error('SendGrid email service not initialized');
       }
 
-      const messages = await Promise.all(
-        response.data.messages.map(async (message) => {
-          const details = await this.gmailClient.users.messages.get({
-            userId: 'me',
-            id: message.id
-          });
-          
-          return this.parseGmailMessage(details.data);
-        })
-      );
+      console.log(`📧 Sending ${emailsData.length} emails via SendGrid...`);
+      const result = await sendGridService.sendMultipleEmails(emailsData);
+      
+      return {
+        success: true,
+        results: result.results,
+        provider: 'sendgrid'
+      };
 
-      return messages;
     } catch (error) {
-      console.error('Gmail messages fetch error:', error);
-      throw error;
+      console.error('❌ Multiple email sending failed:', error);
+      throw new Error(`Multiple email sending failed: ${error.message}`);
     }
   }
 
-  // Parse Gmail message
-  parseGmailMessage(message) {
-    const headers = message.payload.headers;
-    const getHeader = (name) => headers.find(h => h.name === name)?.value || '';
+  // Send template email
+  async sendTemplateEmail(templateData) {
+    try {
+      if (!sendGridService.getStatus().initialized) {
+        throw new Error('SendGrid email service not initialized');
+      }
 
+      console.log('📧 Sending template email via SendGrid...');
+      const result = await sendGridService.sendTemplateEmail(templateData);
+      
+      return {
+        success: true,
+        messageId: result.messageId,
+        provider: 'sendgrid',
+        statusCode: result.statusCode
+      };
+      
+    } catch (error) {
+      console.error('❌ Template email sending failed:', error);
+      throw new Error(`Template email sending failed: ${error.message}`);
+    }
+  }
+
+  // Send campaign outreach email
+  async sendCampaignOutreach(campaignData, contactData) {
+    try {
+      const emailData = {
+        to: contactData.email,
+        subject: campaignData.subject || `Partnership Opportunity - ${campaignData.campaignName}`,
+        body: campaignData.messageBody,
+        from: campaignData.fromEmail || process.env.SENDGRID_FROM_EMAIL,
+        fromName: campaignData.fromName || 'InfluencerFlow Team',
+        categories: ['campaign', 'outreach'],
+        customEmailId: uuidv4()
+      };
+
+      console.log(`📧 Sending campaign outreach to ${contactData.name} (${contactData.email})`);
+      const result = await this.sendEmail(emailData);
+      
+          return {
+        ...result,
+        contactId: contactData.id,
+        campaignId: campaignData.campaignId,
+        type: 'campaign_outreach'
+      };
+
+    } catch (error) {
+      console.error('❌ Campaign outreach email failed:', error);
+      throw new Error(`Campaign outreach failed: ${error.message}`);
+    }
+  }
+
+  // Get service status
+  getStatus() {
     return {
-      id: message.id,
-      threadId: message.threadId,
-      subject: getHeader('Subject'),
-      from: getHeader('From'),
-      to: getHeader('To'),
-      date: getHeader('Date'),
-      snippet: message.snippet,
-      body: this.extractMessageBody(message.payload)
+      initialized: this.initialized,
+      provider: 'sendgrid',
+      sendGridStatus: sendGridService.getStatus()
     };
   }
 
-  // Extract message body from Gmail payload
-  extractMessageBody(payload) {
-    if (payload.body && payload.body.data) {
-      return Buffer.from(payload.body.data, 'base64').toString();
-    }
-
-    if (payload.parts) {
-      for (const part of payload.parts) {
-        if (part.mimeType === 'text/plain' || part.mimeType === 'text/html') {
-          if (part.body && part.body.data) {
-            return Buffer.from(part.body.data, 'base64').toString();
-          }
-        }
-      }
-    }
-
-    return '';
-  }
-
-  // Check for replies to sent emails
-  async checkReplies(originalSubject, senderEmail) {
+  // Check for email replies using SendGrid Activity API
+  async checkReplies(originalSubject, creatorEmail) {
     try {
-      const query = `from:${senderEmail} subject:"Re: ${originalSubject}"`;
-      const replies = await this.getGmailMessages(query);
-      return replies;
+      console.log(`🔍 Checking for replies from ${creatorEmail} with subject: ${originalSubject}`);
+      
+      // Use SendGrid to search for emails from the creator
+      const searchQuery = `from_email="${creatorEmail}" AND (subject LIKE "%Re: ${originalSubject}%" OR subject LIKE "%${originalSubject}%")`;
+      const replies = await sendGridService.searchEmails(searchQuery, 20);
+      
+      console.log(`📧 Found ${replies.length} potential replies from ${creatorEmail}`);
+      
+      return replies.filter(reply => {
+        // Filter for emails that are actually replies (not our outbound emails)
+        const isFromCreator = reply.from && reply.from.toLowerCase().includes(creatorEmail.toLowerCase());
+        const isReply = reply.subject && (
+          reply.subject.toLowerCase().includes('re:') ||
+          reply.subject.toLowerCase().includes(originalSubject.toLowerCase())
+        );
+        return isFromCreator && isReply;
+      }).map(reply => ({
+        id: reply.id,
+        messageId: reply.id,
+        from: reply.from,
+        to: reply.to,
+        subject: reply.subject,
+        status: reply.status,
+        receivedAt: reply.lastEventTime,
+        snippet: `Email ${reply.status} - Last activity: ${reply.lastEventTime}`,
+        provider: 'sendgrid'
+      }));
+
     } catch (error) {
-      console.error('Check replies error:', error);
+      console.error(`❌ Error checking replies from ${creatorEmail}:`, error);
+      // Return empty array instead of throwing to not break the workflow
       return [];
     }
   }
 
-  // Generate OAuth URL for Gmail setup
-  generateGmailAuthUrl() {
-    if (!this.oauth2Client) {
-      throw new Error('Gmail OAuth not configured');
+  // Store outreach email for tracking
+  async storeOutreachEmail(emailData) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      
+      const outreachFile = path.join(__dirname, '../../data/outreach_emails.json');
+      let outreachEmails = [];
+      
+      // Read existing emails
+      if (fs.existsSync(outreachFile)) {
+        outreachEmails = JSON.parse(fs.readFileSync(outreachFile, 'utf8'));
     }
 
-    const scopes = [
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/gmail.readonly'
-    ];
-
-    return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      scope: scopes
-    });
+      // Add new email
+      const emailRecord = {
+        ...emailData,
+        id: emailData.id || uuidv4(),
+        sentAt: new Date().toISOString(),
+        status: 'sent'
+      };
+      
+      outreachEmails.push(emailRecord);
+      
+      // Save back to file
+      fs.writeFileSync(outreachFile, JSON.stringify(outreachEmails, null, 2));
+      
+      console.log(`📝 Stored outreach email record: ${emailRecord.id}`);
+      return emailRecord;
+      
+    } catch (error) {
+      console.error('❌ Error storing outreach email:', error);
+      throw error;
+    }
   }
 
-  // Exchange authorization code for tokens
-  async exchangeCodeForTokens(code) {
-    if (!this.oauth2Client) {
-      throw new Error('Gmail OAuth not configured');
-    }
-
+  // Test email service connection
+  async testConnection() {
     try {
-      const { tokens } = await this.oauth2Client.getToken(code);
-      this.oauth2Client.setCredentials(tokens);
+      console.log('🧪 Testing email service connection...');
+      const testResult = await sendGridService.testConnection();
       
-      return tokens;
+      return {
+        success: true,
+        provider: 'sendgrid',
+        ...testResult
+      };
     } catch (error) {
-      console.error('Token exchange error:', error);
-      throw error;
+      console.error('❌ Email service test failed:', error);
+      throw new Error(`Email service test failed: ${error.message}`);
     }
   }
 }

@@ -9,7 +9,9 @@ const getSupabaseUserId = (authUserId) => {
   // Map the demo user ID to the expected Supabase UUID
   if (authUserId === '550e8400-e29b-41d4-a716-446655440000' || 
       authUserId === '1' || 
-      authUserId === 1) {
+      authUserId === 1 ||
+      authUserId === 'demo' ||
+      authUserId === 'sanjay') {
     return '550e8400-e29b-41d4-a716-446655440000';
   }
   return authUserId; // For other users, assume they're already UUIDs
@@ -302,6 +304,55 @@ router.get('/', authenticateToken, async (req, res) => {
       updatedAt: creator.updated_at,
       addedBy: creator.user_id
     }));
+
+    // For demo user, always ensure Sanjay Malladi is included as a fallback
+    if (isDemoUser) {
+      const hasSanjay = transformedCreators.some(creator => 
+        creator.channelName === 'Sanjay Malladi' || 
+        creator.contactEmail === 'malladisanjay29@gmail.com'
+      );
+      
+      if (!hasSanjay) {
+        // Add Sanjay as fallback if not found in database
+        const sanjayFallback = {
+          id: 'fallback_sanjay_001',
+          channelName: 'Sanjay Malladi',
+          profileImageUrl: 'https://avatar.vercel.sh/sanjaymalladi?size=80&text=SM',
+          youtubeChannelUrl: 'https://www.youtube.com/@sanjaymalladi',
+          instagramUrl: null,
+          tiktokUrl: null,
+          bio: 'Tech entrepreneur and content creator passionate about emerging technologies, AI/ML, and startup ecosystems.',
+          subscriberCount: '2.8M',
+          followerCount: '2.8M',
+          viewCount: '850M',
+          videoCount: '1,247',
+          matchPercentage: 98,
+          categories: ['Technology', 'AI/Machine Learning', 'Entrepreneurship', 'Coding Tutorials'],
+          typicalViews: '450K',
+          engagementRate: '8.2%',
+          recentGrowth: '+15.2% (30 days)',
+          dataSource: 'Fallback Data',
+          geminiBio: 'Innovative tech content creator with expertise in AI, machine learning, and startup development.',
+          popularVideos: [
+            'Building an AI Startup from Scratch - Complete Guide',
+            'React vs Next.js - Which Should You Choose in 2024?',
+            'My $100M AI Startup Journey - Lessons Learned'
+          ],
+          socialPlatforms: ['YouTube', 'LinkedIn', 'Twitter', 'Instagram'],
+          location: 'San Francisco, CA',
+          contactEmail: 'malladisanjay29@gmail.com',
+          notes: 'Demo creator profile - always available',
+          tags: ['tech', 'ai', 'startup', 'premium'],
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          addedBy: supabaseUserId
+        };
+        
+        transformedCreators.unshift(sanjayFallback); // Add at the beginning
+        console.log('✅ Added Sanjay Malladi as fallback creator for demo user');
+      }
+    }
 
     res.json({
       success: true,

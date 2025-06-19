@@ -81,9 +81,9 @@ Desktop.ini
 docs/generated/
 
 # Package manager files
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
+# Keep package-lock.json for npm projects
 
 # Runtime files
 *.pid
@@ -111,6 +111,12 @@ backend/generate-hash.js
 **/*.test.js
 **/*.test.ts
 
+# Unwanted documentation
+**/*INTEGRATION*.md
+**/*SETUP*.md
+**/*DEBUG*.md
+**/*GUIDE*.md
+
 # Data directories (old JSON files) - excluding mock data
 data/
 */data/
@@ -124,4 +130,14 @@ data/
 
 # Local scripts
 local-*.js
-temp-*.js 
+temp-*.js
+
+# Binary files and archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Sensitive or temp directories
+sarvam ai/
+temp/ 

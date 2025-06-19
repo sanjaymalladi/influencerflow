@@ -1,31 +1,50 @@
-# Use Node.js 18 Alpine for smaller image size
-FROM node:18-alpine
+# Multi-stage build for optimized production image
+FROM node:18-alpine AS base
 
-# Set working directory
+# Install dependencies only when needed
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files first (for better caching)
+# Copy dependency files
 COPY package*.json ./
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Install dependencies (this layer will be cached)
-RUN npm install --only=production && npm cache clean --force
+# Development image, copy all the files and run the dev server
+FROM base AS dev
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+CMD ["npm", "run", "dev"]
 
-# Copy application code
+# Production image, copy all the files and run the server
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 influencerflow
+
+# Copy the dependency files from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && adduser -S influencerflow -u 1001
-
-# Change ownership of app directory
+# Create directories for data and uploads
+RUN mkdir -p /app/data /app/uploads /app/temp
 RUN chown -R influencerflow:nodejs /app
+
 USER influencerflow
 
-# Expose port (Render will map this automatically)
+# Expose port
 EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD node -e "require('http').get('http://localhost:5000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
 # Start the application
 CMD ["npm", "start"] 

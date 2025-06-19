@@ -13,6 +13,11 @@ const outreachRoutes = require('./routes/outreach');
 const socialbladeRoutes = require('./routes/socialblade');
 const automationRoutes = require('./routes/automation');
 const replyRoutes = require('./routes/replies');
+const aiCampaignRoutes = require('./routes/ai-campaign');
+const contractRoutes = require('./routes/contracts');
+const paymentRoutes = require('./routes/payments');
+const callingRoutes = require('./routes/callingRoutes');
+const testRoutes = require('./routes/test');
 
 // Initialize Express app
 const app = express();
@@ -32,8 +37,13 @@ app.use(limiter);
 // CORS configuration
 app.use(cors({
   origin: [
+    'https://influencerflow.vercel.app',
     'http://localhost:5173',
-    'https://influencerflow.vercel.app'
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5175'
   ],
   credentials: true
 }));
@@ -57,7 +67,12 @@ app.get('/', (req, res) => {
       creators: '/api/creators', 
       campaigns: '/api/campaigns',
       outreach: '/api/outreach',
-      automation: '/api/automation'
+      automation: '/api/automation',
+      contracts: '/api/contracts',
+      payments: '/api/payments',
+      negotiation: '/api/negotiation',
+
+      aiCampaign: '/api/ai-campaign'
     },
     docs: 'https://github.com/sanjaymalladi/influencerflow',
     frontend: 'https://influencerflow.vercel.app'
@@ -83,6 +98,14 @@ app.use('/api/outreach', outreachRoutes);
 app.use('/api/socialblade', socialbladeRoutes);
 app.use('/api/automation', automationRoutes);
 app.use('/api/replies', replyRoutes);
+app.use('/api/ai-campaign', aiCampaignRoutes);
+app.use('/api/contracts', contractRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/negotiation', require('./routes/negotiation'));
+app.use('/api/calling', callingRoutes);
+
+// Test data routes (for development/testing)
+app.use('/api/test-data', require('./routes/test-data'));
 
 // Setup endpoint for demo data (admin only)
 app.post('/api/setup-demo', async (req, res) => {
@@ -154,7 +177,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server with better error handling
+// WebSocket server removed - using web-based voice chat only
+
+// Start HTTP server
 const server = app.listen(PORT, () => {
   const isProduction = process.env.NODE_ENV === 'production';
   const apiUrl = isProduction ? 'https://influencerflow.onrender.com' : `http://localhost:${PORT}`;
@@ -165,16 +190,13 @@ const server = app.listen(PORT, () => {
   console.log(`🌐 Frontend URL: ${frontendUrl}`);
   console.log(`🔗 API URL: ${apiUrl}`);
   console.log(`💚 Health Check: ${apiUrl}/health`);
+  console.log(`🎙️ Voice Chat: Web-based voice assistant ready`);
 });
 
 // Handle server errors
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use!`);
-    console.log(`💡 Try one of these solutions:`);
-    console.log(`   1. Kill processes using port ${PORT}: taskkill /F /IM node.exe`);
-    console.log(`   2. Use a different port by setting PORT environment variable`);
-    console.log(`   3. Wait a moment and try again`);
     process.exit(1);
   } else {
     console.error('❌ Server error:', err);

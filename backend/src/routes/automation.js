@@ -1,10 +1,10 @@
 const express = require('express');
 const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const emailService = require('../services/emailService');
-const aiService = require('../services/aiNegotiationService');
 const contractService = require('../services/contractService');
 const paymentService = require('../services/paymentService');
 const { v4: uuidv4 } = require('uuid');
+const geminiAiService = require('../services/geminiAiService');
 
 const router = express.Router();
 
@@ -13,10 +13,10 @@ const campaignNegotiations = new Map();
 const contractData = new Map();
 const paymentRecords = new Map();
 
-// @route   POST /api/automation/test-email
-// @desc    Test email sending functionality (Mailtrap)
-// @access  Public (for testing)
-router.post('/test-email', async (req, res) => {
+// @route   POST /api/automation/send-email
+// @desc    Send real email for negotiations
+// @access  Public (for real negotiation system)
+router.post('/send-email', async (req, res) => {
   try {
     const { to, subject, message } = req.body;
 
@@ -27,55 +27,49 @@ router.post('/test-email', async (req, res) => {
       });
     }
 
-    console.log('Testing email send to:', to);
+    console.log('Sending negotiation email to:', to);
     
     const emailData = {
       to,
-      subject: subject || 'Test Email from InfluencerFlow',
-      body: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #FFE600; text-align: center;">🚀 InfluencerFlow Test Email</h2>
-              <p>Hello!</p>
-              <p>${message}</p>
-              <div style="background-color: #f9f9f9; padding: 15px; margin: 20px 0; border-radius: 5px;">
-                <p><strong>This is a test email from InfluencerFlow automation system.</strong></p>
-                <p>✅ Email service is working properly</p>
-                <p>✅ MailerSend integration is active</p>
-                <p>✅ Ready for influencer outreach campaigns</p>
-              </div>
-              <p>Best regards,<br>InfluencerFlow Team</p>
-              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-              <p style="font-size: 12px; color: #888; text-align: center;">
-                This email was sent from InfluencerFlow automation system at ${new Date().toLocaleString()}
-              </p>
-            </div>
-          </body>
-        </html>
-      `,
-      from: process.env.DEFAULT_FROM_EMAIL || 'test@influencerflow.com'
+      subject,
+      body: message,
+      from: process.env.SENDGRID_FROM_EMAIL || 'malladisanjay29@gmail.com',
+      fromName: process.env.SENDGRID_FROM_NAME || 'InfluencerFlow Team'
     };
 
     const result = await emailService.sendEmail(emailData);
 
+    // Store the email for tracking
+    const emailRecord = await emailService.storeOutreachEmail({
+      campaignId: req.body.campaignId || 'unknown',
+      creatorId: req.body.creatorId || 'unknown', 
+      subject,
+      body: message,
+      status: 'sent',
+      createdBy: '1', // Default user for now
+      recipientEmail: to,
+      messageId: result.messageId,
+      provider: result.provider
+    });
+
     res.json({
       success: true,
-      message: 'Test email sent successfully!',
+      message: 'Email sent successfully!',
       data: {
         to,
         subject,
         provider: result.provider,
         messageId: result.messageId,
+        emailId: emailRecord.id,
         sentAt: new Date().toISOString()
       }
     });
 
   } catch (error) {
-    console.error('Test email error:', error);
+    console.error('Email sending error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send test email',
+      message: 'Failed to send email',
       error: error.message
     });
   }
@@ -157,6 +151,132 @@ router.post('/send-outreach', authenticateToken, authorizeRole('brand', 'agency'
     res.status(500).json({
       success: false,
       message: 'Server error processing outreach'
+    });
+  }
+});
+
+// @route   POST /api/automation/check-replies
+// @desc    Check for email replies from specific creator using SendGrid Activity API
+// @access  Public (for testing)
+router.post('/check-replies', async (req, res) => {
+  try {
+    const { originalSubject, creatorEmail } = req.body;
+
+    if (!originalSubject || !creatorEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide originalSubject and creatorEmail'
+      });
+    }
+
+    console.log(`🔍 Checking for replies from ${creatorEmail} for subject: ${originalSubject}`);
+
+    const replies = await emailService.checkReplies(originalSubject, creatorEmail);
+    
+    res.json({
+      success: true,
+      data: {
+        creatorEmail,
+        originalSubject,
+        replies,
+        replyCount: replies.length,
+        hasNewReplies: replies.length > 0,
+        latestReply: replies.length > 0 ? replies[0] : null,
+        provider: 'sendgrid'
+      }
+    });
+
+  } catch (error) {
+    console.error('Reply check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking replies',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/automation/webhook/sendgrid-inbound
+// @desc    Handle incoming emails from SendGrid Inbound Parse webhook
+// @access  Public (webhook)
+router.post('/webhook/sendgrid-inbound', async (req, res) => {
+  try {
+    console.log('📨 Received SendGrid inbound webhook');
+    
+    // SendGrid sends form data, not JSON
+    const emailData = req.body;
+    
+    // Process the incoming email
+    const sendGridService = require('../services/sendGridService');
+    const processedEmail = await sendGridService.processInboundEmail(emailData);
+    
+    console.log(`📧 Processed inbound email from: ${processedEmail.from}`);
+    console.log(`📧 Subject: ${processedEmail.subject}`);
+    console.log(`📧 Is Reply: ${processedEmail.isReply}`);
+    
+    // If it's a reply to a campaign, trigger negotiation processing
+    if (processedEmail.isReply && processedEmail.campaignId) {
+      try {
+        // Here you could trigger the negotiation agent to process the reply
+        console.log(`🤝 Triggering negotiation processing for campaign: ${processedEmail.campaignId}`);
+        
+        // This would call your negotiation service to handle the reply
+        // const negotiationService = require('../services/negotiationService');
+        // await negotiationService.processReply(processedEmail);
+        
+      } catch (negotiationError) {
+        console.error('❌ Error processing negotiation:', negotiationError);
+      }
+    }
+    
+    // Always respond with success to SendGrid
+    res.status(200).json({
+      success: true,
+      message: 'Email processed successfully',
+      emailId: processedEmail.id
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing SendGrid webhook:', error);
+    
+    // Still respond with success to prevent SendGrid retries
+    res.status(200).json({
+      success: false,
+      message: 'Error processing email',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/automation/setup-sendgrid-webhook
+// @desc    Setup SendGrid Inbound Parse webhook configuration
+// @access  Private (Admin only)
+router.post('/setup-sendgrid-webhook', async (req, res) => {
+  try {
+    const { hostname, webhookUrl } = req.body;
+    
+    if (!hostname || !webhookUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide hostname and webhookUrl'
+      });
+    }
+
+    const sendGridService = require('../services/sendGridService');
+    const result = await sendGridService.setupInboundParse(webhookUrl, hostname);
+    
+    res.json({
+      success: true,
+      message: 'SendGrid Inbound Parse configured successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error setting up SendGrid webhook:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting up webhook',
+      error: error.message
     });
   }
 });
@@ -622,6 +742,55 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching dashboard data'
+    });
+  }
+});
+
+// Simulate Sanjay's response for quick testing
+router.post('/simulate-sanjay-response', async (req, res) => {
+  try {
+    console.log('🎭 Simulating Sanjay response...');
+    
+    const { originalMessage, campaign, creatorEmail } = req.body;
+    
+    if (!originalMessage || !campaign) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: originalMessage and campaign'
+      });
+    }
+
+    // Check if this is for Sanjay's email
+    const isSanjay = creatorEmail && creatorEmail.toLowerCase().includes('sanjay');
+    
+    if (!isSanjay) {
+      return res.status(400).json({
+        success: false,
+        error: 'Response simulation is only available for Sanjay (sanjaymallladi12@gmail.com)'
+      });
+    }
+
+    // Generate simulated response using Gemini AI
+    const simulatedResponse = await geminiAiService.simulateSanjayResponse(originalMessage, campaign);
+    
+    // Optionally store the simulated response in the database as a received email
+    // This would help with testing the full negotiation flow
+    
+    console.log('✅ Sanjay response simulated successfully');
+    
+    res.json({
+      success: true,
+      simulatedResponse: simulatedResponse,
+      creator: 'Sanjay Tech Solutions',
+      timestamp: new Date().toISOString(),
+      isSimulated: true
+    });
+
+  } catch (error) {
+    console.error('Error simulating Sanjay response:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to simulate response'
     });
   }
 });

@@ -1,0 +1,134 @@
+# InfluencerFlow Environment Configuration
+# Copy this file to .env and fill in your actual values
+
+# ================================
+# APPLICATION SETTINGS
+# ================================
+NODE_ENV=development
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+# ================================
+# DATABASE (SUPABASE)
+# ================================
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+
+# ================================
+# AUTHENTICATION
+# ================================
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRES_IN=7d
+
+# ================================
+# EMAIL SERVICES
+# ================================
+# SendGrid
+SENDGRID_API_KEY=your_sendgrid_api_key
+
+# Gmail (for Gmail integration)
+GMAIL_CLIENT_ID=your_gmail_oauth_client_id
+GMAIL_CLIENT_SECRET=your_gmail_oauth_client_secret
+GMAIL_REFRESH_TOKEN=your_gmail_refresh_token
+
+# Resend
+RESEND_API_KEY=your_resend_api_key
+
+# ================================
+# AI SERVICES
+# ================================
+# Google Gemini AI
+GEMINI_API_KEY=your_gemini_api_key
+
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
+# Sarvam AI
+SARVAM_API_KEY=your_sarvam_api_key
+
+# ================================
+# SOCIAL PLATFORMS
+# ================================
+# YouTube Data API
+YOUTUBE_API_KEY=your_youtube_api_key
+
+# Instagram Basic Display API
+INSTAGRAM_APP_ID=your_instagram_app_id
+INSTAGRAM_APP_SECRET=your_instagram_app_secret
+
+# TikTok API (if using)
+TIKTOK_CLIENT_KEY=your_tiktok_client_key
+TIKTOK_CLIENT_SECRET=your_tiktok_client_secret
+
+# ================================
+# PAYMENT PROCESSING
+# ================================
+# Razorpay
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+# Stripe (if using)
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=your_stripe_secret_key
+
+# ================================
+# COMMUNICATION
+# ================================
+# Twilio (for SMS/Voice)
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+# LiveKit (for voice calls)
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+LIVEKIT_WS_URL=your_livekit_websocket_url
+
+# ================================
+# CACHING & SESSION STORE
+# ================================
+REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=your_redis_password
+
+# ================================
+# FILE STORAGE
+# ================================
+# For file uploads and contract storage
+STORAGE_TYPE=local
+# If using cloud storage:
+AWS_S3_BUCKET=your_s3_bucket_name
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=your_aws_region
+
+# ================================
+# MONITORING & ANALYTICS
+# ================================
+# For error tracking and performance monitoring
+SENTRY_DSN=your_sentry_dsn
+
+# Google Analytics
+GA_TRACKING_ID=your_ga_tracking_id
+
+# ================================
+# DEVELOPMENT SETTINGS
+# ================================
+DEBUG=true
+LOG_LEVEL=debug
+
+# ================================
+# PRODUCTION SETTINGS
+# ================================
+# For production deployment
+DOMAIN=yourdomain.com
+SSL_CERT_PATH=/path/to/ssl/cert
+SSL_KEY_PATH=/path/to/ssl/key
+
+# Database connection pooling
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+
+# Rate limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100 

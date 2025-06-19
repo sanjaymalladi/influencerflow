@@ -1,14 +1,75 @@
+# Dependencies
 node_modules
-npm-debug.log
-.npm
-.nyc_output
-.coverage
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+*.md
+README.md
+
+# Git
 .git
 .gitignore
-README.md
-.env
+
+# Documentation
+docs/
+
+# Test files
+test/
+tests/
+**/*.test.js
+**/*.spec.js
+coverage/
+
+# Build tools
+.nyc_output
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Logs
+logs/
 *.log
-logs
-*.tgz
-.cache 
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Data files (development)
+data/
+uploads/
+
+# Scripts (development/testing)
+test-*.js
+fix-*.js
+check-*.js
+create-*.js
+send-*.js
+migrate-*.js
+monitor-*.js
+
+# Deployment files
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile.dev
+
+# Archive files
+*.zip
+*.tar.gz
+
+# Cache
+.cache/ 

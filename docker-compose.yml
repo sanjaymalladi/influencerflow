@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    container_name: influencerflow-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - FRONTEND_URL=http://localhost:5173
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+    networks:
+      - influencerflow-network
+
+  # Frontend development service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: influencerflow-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:5000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - influencerflow-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: influencerflow-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - influencerflow-network
+
+volumes:
+  redis-data:
+
+networks:
+  influencerflow-network:
+    driver: bridge 

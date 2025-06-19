@@ -30,7 +30,7 @@ const defaultGenerationConfig = {
  * @param {string} [params.modelName] - The AI model to use (e.g., 'gemini-pro').
  * @returns {Promise<string>} - The AI-generated email content.
  */
-const generateEmailContent = async ({ prompt, conversationHistory = [], modelName = 'gemini-pro' }) => {
+const generateEmailContent = async ({ prompt, conversationHistory = [], modelName = 'gemini-1.5-flash' }) => {
   if (!genAI) {
     throw new Error('Gemini AI service is not configured. API key missing.');
   }
@@ -74,7 +74,7 @@ const generateEmailContent = async ({ prompt, conversationHistory = [], modelNam
  * @param {string} [params.modelName] - The AI model to use (e.g., 'gemini-pro' or a more advanced one for JSON).
  * @returns {Promise<object>} - An object containing { summaryOfReply, negotiationPoints, suggestedReplyDraft, requiresHumanAction, humanActionPrompt, nextStep }.
  */
-const analyzeAndSuggestReply = async ({ emailContent, conversationHistory, campaignDetails, creatorDetails, modelName = 'gemini-pro' }) => {
+const analyzeAndSuggestReply = async ({ emailContent, conversationHistory, campaignDetails, creatorDetails, modelName = 'gemini-1.5-flash' }) => {
   if (!genAI) {
     throw new Error('Gemini AI service is not configured. API key missing.');
   }
