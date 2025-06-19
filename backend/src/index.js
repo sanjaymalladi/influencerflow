@@ -17,7 +17,6 @@ const aiCampaignRoutes = require('./routes/ai-campaign');
 const contractRoutes = require('./routes/contracts');
 const paymentRoutes = require('./routes/payments');
 const callingRoutes = require('./routes/callingRoutes');
-const testRoutes = require('./routes/test');
 
 // Initialize Express app
 const app = express();
@@ -104,8 +103,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/negotiation', require('./routes/negotiation'));
 app.use('/api/calling', callingRoutes);
 
-// Test data routes (for development/testing)
-app.use('/api/test-data', require('./routes/test-data'));
+// Test data routes removed for production
 
 // Setup endpoint for demo data (admin only)
 app.post('/api/setup-demo', async (req, res) => {
