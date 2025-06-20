@@ -1,12 +1,22 @@
 const { EventEmitter } = require('events');
 const SarvamAiService = require('../services/sarvamAiService');
 
+// Enhanced caching for optimized responses
+const responseCache = new Map();
+const commonPhrases = new Map([
+  ['hello', 'Hi! I\'m Vidya, here to help you make a great deal.'],
+  ['hi', 'Hey! How can I help you today?'],
+  ['thank you', 'No problem! Need anything else?'],
+  ['goodbye', 'Bye! Hope we got you a good deal!'],
+  ['help', 'I\'m here to help you get the best deal. What do you want to know?']
+]);
+
 // Constants for Sarvam AI configuration
 const SUPPORTED_VOICES = {
-  '1': { lang: 'en-IN', speaker: 'anushka', gender: 'female', greeting: 'Hello' },
-  '2': { lang: 'hi-IN', speaker: 'sunita', gender: 'female', greeting: 'नमस्ते' },
-  '3': { lang: 'en-IN', speaker: 'vivek', gender: 'male', greeting: 'Hello' },
-  '4': { lang: 'hi-IN', speaker: 'sanjeev', gender: 'male', greeting: 'नमस्ते' },
+  '1': { lang: 'en-IN', speaker: 'vidya', gender: 'female', greeting: 'Hello' },
+  '2': { lang: 'hi-IN', speaker: 'vidya', gender: 'female', greeting: 'नमस्ते' },
+  '3': { lang: 'te-IN', speaker: 'vidya', gender: 'female', greeting: 'నమస్కారం' },
+  '4': { lang: 'ta-IN', speaker: 'vidya', gender: 'female', greeting: 'வணக்கம்' },
 };
 
 class VoiceAgent extends EventEmitter {
@@ -14,11 +24,17 @@ class VoiceAgent extends EventEmitter {
     super();
     this.logs = [];
     this.activeNegotiations = new Map();
+    this.performanceMetrics = {
+      totalRequests: 0,
+      avgResponseTime: 0,
+      cacheHits: 0,
+      optimizedRequests: 0
+    };
 
     // Initialize Sarvam AI service
     this.sarvamAI = new SarvamAiService();
 
-    this.addLog('VoiceAgent initialized with Sarvam AI integration for web-based voice chat.');
+    this.addLog('VoiceAgent initialized with Sarvam AI integration and optimization features.');
   }
 
   addLog(message, type = 'info') {
@@ -26,159 +42,384 @@ class VoiceAgent extends EventEmitter {
       timestamp: new Date().toISOString(),
       message,
       type,
-      agent: 'VoiceAgent',
+      service: 'VoiceAgent'
     };
     this.logs.push(log);
     console.log(`[${type.toUpperCase()}] [VoiceAgent] ${message}`);
   }
 
-  // Process speech-to-text using Sarvam AI
-  async processSpeechToText(audioBuffer, languageCode = 'en-IN') {
+  // Enhanced negotiation initialization with campaign context
+  async initializeNegotiation(config) {
     try {
-      this.addLog(`Processing STT for audio buffer of size: ${audioBuffer.length} bytes`);
-      
-      const result = await this.sarvamAI.speechToText(audioBuffer, languageCode);
-      
-      if (result && result.transcript) {
-        this.addLog(`STT successful: "${result.transcript}"`);
-        return result.transcript;
-      } else {
-        this.addLog('STT failed - no transcript returned', 'warn');
-        return null;
+      const {
+        negotiationId,
+        creatorName,
+        campaignTitle,
+        negotiationContext,
+        campaignData,
+        selectedCreators,
+        strategy,
+        voiceKey,
+        languageCode,
+        optimizedMode = true
+      } = config;
+
+      this.addLog(`Initializing negotiation ${negotiationId} with enhanced context`);
+
+      // Build comprehensive context for AI
+      const enhancedContext = {
+        negotiationId,
+        creatorName,
+        campaignTitle,
+        strategy,
+        voiceKey,
+        languageCode,
+        optimizedMode,
+        campaignData: {
+          briefSummary: campaignData?.briefSummary || campaignTitle,
+          targetAudience: campaignData?.targetAudience || 'General audience',
+          keyTalkingPoints: campaignData?.keyTalkingPoints || [],
+          budget: campaignData?.budget || negotiationContext?.budget || 25000,
+          timeline: campaignData?.timeline || negotiationContext?.timeline || '2 weeks',
+          deliverables: negotiationContext?.deliverables || ['Instagram Posts', 'Stories']
+        },
+        creatorContext: selectedCreators?.length > 0 ? {
+          name: selectedCreators[0].name,
+          platform: selectedCreators[0].platform,
+          followers: selectedCreators[0].followers,
+          engagement: selectedCreators[0].engagement,
+          pricing: selectedCreators[0].pricing
+        } : null,
+        startTime: new Date(),
+        conversationHistory: []
+      };
+
+      this.activeNegotiations.set(negotiationId, enhancedContext);
+
+      // Pre-generate common responses for faster interactions
+      if (optimizedMode) {
+        await this.preGenerateResponses(languageCode, enhancedContext);
       }
+
+      this.addLog(`Negotiation ${negotiationId} initialized successfully with optimization`);
+      
+      return {
+        success: true,
+        negotiationId,
+        context: enhancedContext,
+        optimizedMode
+      };
+
     } catch (error) {
-      this.addLog(`STT error: ${error.message}`, 'error');
-      return null;
+      this.addLog(`Failed to initialize negotiation: ${error.message}`, 'error');
+      throw error;
     }
   }
 
-  // Generate AI response for negotiation using Sarvam AI chat completion
-  async generateNegotiationReply(negotiation, userInput = '') {
+  // Pre-generate common responses for optimized mode
+  async preGenerateResponses(languageCode, context) {
     try {
-      this.addLog(`Generating negotiation response for ${negotiation.negotiationId}`);
+      const commonQueries = [
+        'What is the budget for this campaign?',
+        'When do you need this completed?',
+        'What deliverables are you looking for?',
+        'Can you tell me about the target audience?'
+      ];
 
-      // Build conversation history for context
-      const conversationHistory = negotiation.transcript.slice(-5).map(t => ({
-        role: t.speaker === 'user' ? 'user' : 'assistant',
-        content: t.text
-      }));
+      for (const query of commonQueries) {
+        try {
+          const cacheKey = `${languageCode}_${query}`;
+          if (!responseCache.has(cacheKey)) {
+            const response = await this.generateContextualResponse(query, context, languageCode);
+            responseCache.set(cacheKey, {
+              response,
+              timestamp: Date.now(),
+              language: languageCode
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to pre-generate response for: ${query}`);
+        }
+      }
 
-      // System prompt for negotiation context
-      const systemPrompt = {
-        role: 'system',
-        content: `You are an AI negotiation specialist for InfluencerFlow, helping to negotiate influencer collaborations.
+      this.addLog(`Pre-generated responses for ${languageCode}`);
+    } catch (error) {
+      console.warn(`Failed to pre-generate responses: ${error.message}`);
+    }
+  }
 
-NEGOTIATION CONTEXT:
-- Creator: ${negotiation.creatorName}
-- Campaign: ${negotiation.campaignTitle}
-- Budget: $${negotiation.negotiationContext?.budget || 'Not specified'}
-- Deliverables: ${negotiation.negotiationContext?.deliverables?.join(', ') || 'Not specified'}
-- Timeline: ${negotiation.negotiationContext?.timeline || 'Not specified'}
-- Strategy: ${negotiation.strategy}
+  // Enhanced voice input processing with optimization
+  async processVoiceInput(config) {
+    const startTime = Date.now();
+    try {
+      const {
+        audioBuffer,
+        languageCode,
+        negotiationId,
+        context,
+        mimeType,
+        optimizedMode = true
+      } = config;
 
-INSTRUCTIONS:
-- Be professional, friendly, and collaborative
-- Focus on finding mutually beneficial solutions
-- Ask clarifying questions when needed
-- Suggest specific terms and conditions
-- Keep responses conversational and under 100 words
-- Use the creator's name naturally in conversation
-- Address pricing, deliverables, timeline, and creative freedom as appropriate
-- Help negotiate fair terms for both parties`
-      };
+      this.addLog(`Processing voice input for ${negotiationId}, optimized: ${optimizedMode}`);
 
-      // Add user's latest message
-      if (userInput) {
-        conversationHistory.push({
-          role: 'user',
-          content: userInput
+      // Get negotiation context
+      const negotiationContext = this.activeNegotiations.get(negotiationId) || context;
+      if (!negotiationContext) {
+        throw new Error('Negotiation context not found');
+      }
+
+      let timing = { stt: 0, ai: 0, tts: 0 };
+      let transcript, aiResponse, audioResponse;
+
+      // Step 1: Speech-to-Text
+      const sttStart = Date.now();
+      const sttResult = await this.sarvamAI.speechToText(audioBuffer, languageCode, mimeType);
+      timing.stt = Date.now() - sttStart;
+
+      if (!sttResult.success) {
+        throw new Error(`STT failed: ${sttResult.error}`);
+      }
+
+      transcript = sttResult.transcript;
+      this.addLog(`STT completed in ${timing.stt}ms: "${transcript}"`);
+
+      // Step 2: Check cache for optimized responses
+      let contextUsed = false;
+      if (optimizedMode) {
+        const cachedResponse = this.getCachedResponse(transcript, languageCode);
+        if (cachedResponse) {
+          aiResponse = cachedResponse;
+          this.performanceMetrics.cacheHits++;
+          this.addLog(`Using cached response for optimization`);
+        }
+      }
+
+      // Step 3: Generate AI response if not cached
+      if (!aiResponse) {
+        const aiStart = Date.now();
+        aiResponse = await this.generateContextualResponse(transcript, negotiationContext, languageCode);
+        timing.ai = Date.now() - aiStart;
+        contextUsed = true;
+      }
+
+      this.addLog(`AI response generated in ${timing.ai}ms`);
+
+      // Step 4: Text-to-Speech
+      const ttsStart = Date.now();
+      const ttsResult = await this.sarvamAI.textToSpeech(
+        aiResponse, 
+        `${languageCode}-vidya`, 
+        languageCode,
+        { optimizedMode }
+      );
+      timing.tts = Date.now() - ttsStart;
+
+      if (ttsResult.success) {
+        audioResponse = ttsResult.audioData;
+        this.addLog(`TTS completed in ${timing.tts}ms`);
+      }
+
+      // Update conversation history
+      if (negotiationContext.conversationHistory) {
+        negotiationContext.conversationHistory.push({
+          timestamp: new Date(),
+          userInput: transcript,
+          aiResponse,
+          language: languageCode
         });
       }
 
-      // Prepare messages for chat completion
-      const messages = [systemPrompt, ...conversationHistory];
+      // Update performance metrics
+      const totalTime = Date.now() - startTime;
+      timing.total = totalTime;
+      this.updatePerformanceMetrics(totalTime, optimizedMode);
 
-      // Call Sarvam AI chat completion
-      const result = await this.sarvamAI.chatCompletion(messages, {
+      return {
+        success: true,
+        transcript,
+        aiResponse,
+        audioResponse,
+        timing,
+        contextUsed,
+        optimized: optimizedMode
+      };
+
+    } catch (error) {
+      this.addLog(`Voice processing failed: ${error.message}`, 'error');
+      throw error;
+    }
+  }
+
+  // Generate contextual response using campaign data
+  async generateContextualResponse(userInput, context, languageCode) {
+    try {
+      // Build context-aware prompt
+      const campaignInfo = context.campaignData || {};
+      const creatorInfo = context.creatorContext || {};
+      
+      const systemPrompt = this.buildSystemPrompt(languageCode, campaignInfo, creatorInfo, context.creatorName);
+      
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userInput }
+      ];
+
+      // Add conversation history for context
+      if (context.conversationHistory && context.conversationHistory.length > 0) {
+        const recentHistory = context.conversationHistory.slice(-3); // Last 3 exchanges
+        for (const exchange of recentHistory) {
+          messages.splice(-1, 0, 
+            { role: 'user', content: exchange.userInput },
+            { role: 'assistant', content: exchange.aiResponse }
+          );
+        }
+      }
+
+      const response = await this.sarvamAI.chatCompletion(messages, languageCode, {
+        maxTokens: 80, // Shorter responses for faster processing
         temperature: 0.7,
-        maxTokens: 150,
-        reasoningEffort: 'medium'
+        campaignContext: campaignInfo,
+        creatorContext: creatorInfo
       });
 
-      if (result && result.choices && result.choices.length > 0) {
-        const aiReply = result.choices[0].message.content;
-        this.addLog(`Generated AI negotiation response for ${negotiation.negotiationId}`);
-        return aiReply;
-      } else {
-        throw new Error('No response from chat completion');
-      }
+      return response.content || response.message || 'Got it! What do you want to do next?';
 
     } catch (error) {
-      this.addLog(`Chat completion failed for negotiation ${negotiation.negotiationId}: ${error.message}`, 'error');
-      return this.generateFallbackResponse(negotiation, userInput);
+      this.addLog(`AI response generation failed: ${error.message}`, 'error');
+      
+      // Fallback responses by language
+      const fallbackResponses = {
+        'en-IN': 'Got it! I can help you work out a good deal. What do you want to talk about?',
+        'hi-IN': 'समझ गया! मैं आपको अच्छा deal बनाने में मदद कर सकती हूं। आप क्या बात करना चाहते हैं?',
+        'te-IN': 'అర్థమైంది! మంచి deal చేయడంలో మీకు సహాయం చేస్తాను. మీరు ఏమి మాట్లాడాలని అనుకుంటున్నారు?',
+        'ta-IN': 'புரிந்தது! நல்ல deal செய்ய உங்களுக்கு உதவ முடியும். நீங்கள் எதைப் பற்றி பேச விரும்புகிறீர்கள்?'
+      };
+      
+      return fallbackResponses[languageCode] || fallbackResponses['en-IN'];
     }
   }
 
-  generateFallbackResponse(negotiation, userInput) {
-    const fallbackResponses = [
-      `Thanks for sharing that, ${negotiation.creatorName}. Let me make sure I understand your requirements correctly for the ${negotiation.campaignTitle} campaign.`,
-      `That's a great point about the collaboration terms. For this ${negotiation.campaignTitle} project, we want to ensure both creative freedom and campaign objectives are met.`,
-      `I appreciate you bringing that up. Let's work together to find the best approach for this ${negotiation.campaignTitle} partnership.`,
-      `Thank you for the feedback. Can you tell me more about your preferences for this collaboration?`,
-      `That's an important consideration for our ${negotiation.campaignTitle} campaign. What would work best for your content creation process?`
-    ];
+  // Build language-specific system prompt with campaign context
+  buildSystemPrompt(languageCode, campaignInfo, creatorInfo, creatorName) {
+    const basePrompts = {
+      'en-IN': `You are Vidya, a friendly AI helper for brand deals. You're helping ${creatorName} and a brand work out a good campaign deal together.
 
-    const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
-    this.addLog(`Using fallback response for ${negotiation.negotiationId}`, 'warn');
-    return randomResponse;
+About this campaign:
+- What it's about: ${campaignInfo.briefSummary || 'Not mentioned yet'}
+- Who it's for: ${campaignInfo.targetAudience || 'General people'}
+- Budget: ₹${(campaignInfo.budget * 83) || 'Not mentioned yet'}
+- When needed: ${campaignInfo.timeline || 'Not mentioned yet'}
+- What's needed: ${campaignInfo.deliverables?.join(', ') || 'Not mentioned yet'}
+- Main points: ${campaignInfo.keyTalkingPoints?.join(', ') || 'None mentioned'}
+
+${creatorInfo ? `About ${creatorInfo.name}:
+- Platform: ${creatorInfo.platform}
+- Followers: ${creatorInfo.followers?.toLocaleString()}
+- How active fans are: ${creatorInfo.engagement}
+- Usual rate: ₹${creatorInfo.pricing || 'Not mentioned'}` : ''}
+
+Talk like a normal person. Be friendly and helpful. Try to make both sides happy. Keep it short and simple. No fancy words!`,
+
+      'hi-IN': `आप विद्या हैं, एक मित्रवत AI सहायक। आप ${creatorName} और ब्रांड के बीच अच्छा deal बनाने में मदद कर रही हैं।
+
+इस campaign के बारे में:
+- यह किस बारे में है: ${campaignInfo.briefSummary || 'अभी तक नहीं बताया'}
+- किसके लिए है: ${campaignInfo.targetAudience || 'आम लोग'}
+- बजट: ₹${(campaignInfo.budget * 83) || 'अभी तक नहीं बताया'}
+- कब चाहिए: ${campaignInfo.timeline || 'अभी तक नहीं बताया'}
+- क्या चाहिए: ${campaignInfo.deliverables?.join(', ') || 'अभी तक नहीं बताया'}
+
+आसान भाषा में बात करें। दोस्ताना और helpful रहें। दोनों को खुश करने की कोशिश करें। छोटे और सरल जवाब दें!`,
+
+      'te-IN': `మీరు విద్య, ఒక స్నేహపూర్వక AI సహాయకురాలు. మీరు బ్రాండ్ మరియు ${creatorName} మధ్య ప్రచార ఒప్పందం చర్చలలో సహాయం చేస్తున్నారు।
+
+ఈ campaign గురించి:
+- ఇది దేని గురించి: ${campaignInfo.briefSummary || 'ఇంకా చెప్పలేదు'}
+- ఎవరికోసం: ${campaignInfo.targetAudience || 'సాధారణ ప్రజలు'}
+- బడ్జెట్: ₹${(campaignInfo.budget * 83) || 'ఇంకా చెప్పలేదు'}
+- ఎప్పుడు కావాలి: ${campaignInfo.timeline || 'ఇంకా చెప్పలేదు'}
+
+సాధారణ భాషలో మాట్లాడండి. స్నేహపూర్వకంగా మరియు helpful గా ఉండండి. రెండు వైపులా సంతోషపెట్టే ప్రయత్నం చేయండి. చిన్న మరియు సరళమైన జవాబులు ఇవ్వండి!`
+    };
+
+    return basePrompts[languageCode] || basePrompts['en-IN'];
   }
 
-  // Generate speech from text using Sarvam AI
-  async processTextToSpeech(text, languageCode, voiceKey) {
+  // Get cached response for optimization
+  getCachedResponse(input, languageCode) {
+    const normalizedInput = input.toLowerCase().trim();
+    
+    // Check common phrases
+    for (const [phrase, response] of commonPhrases) {
+      if (normalizedInput.includes(phrase)) {
+        return response;
+      }
+    }
+
+    // Check response cache
+    const cacheKey = `${languageCode}_${normalizedInput}`;
+    const cached = responseCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) { // 5 minutes cache
+      return cached.response;
+    }
+
+    return null;
+  }
+
+  // Enhanced TTS with optimization
+  async textToSpeech(text, voiceKey, languageCode, options = {}) {
     try {
-      this.addLog(`Processing TTS for text: "${text.substring(0, 50)}..."`);
-
-      // Ensure we have a proper voice key format (e.g., 'en-IN-vidya')
-      let actualVoiceKey = voiceKey;
-      if (!voiceKey || !voiceKey.includes('-')) {
-        // If voiceKey is just a speaker name, construct the full key
-        actualVoiceKey = `${languageCode}-${voiceKey || 'vidya'}`;
+      const { optimizedMode = true } = options;
+      
+      this.addLog(`TTS request for "${text.substring(0, 30)}..." with ${voiceKey}, optimized: ${optimizedMode}`);
+      
+      const result = await this.sarvamAI.textToSpeech(text, voiceKey, languageCode);
+      
+      if (optimizedMode) {
+        this.performanceMetrics.optimizedRequests++;
       }
-
-      this.addLog(`Using voice key: ${actualVoiceKey}`);
-
-      // Call Sarvam AI with correct parameter order: (text, voiceKey, languageCode)
-      const result = await this.sarvamAI.textToSpeech(text, actualVoiceKey, languageCode);
-
-      if (result && result.success && result.audioData) {
-        this.addLog(`TTS successful for voice: ${actualVoiceKey}, generated audio data`);
-        
-        // Convert base64 string to buffer if needed
-        if (typeof result.audioData === 'string') {
-          return Buffer.from(result.audioData, 'base64');
-        }
-        return result.audioData;
-      } else {
-        this.addLog('TTS failed - no audio data returned', 'warn');
-        return null;
-      }
-
+      
+      return {
+        ...result,
+        timing: { tts: result.timing || 0 },
+        optimized: optimizedMode
+      };
+      
     } catch (error) {
-      this.addLog(`TTS error: ${error.message}`, 'error');
-      return null;
+      this.addLog(`TTS failed: ${error.message}`, 'error');
+      throw error;
     }
   }
 
-  // Detect language of input text
-  async detectLanguage(text) {
-    try {
-      const result = await this.sarvamAI.detectLanguage(text);
-      this.addLog(`Language detected: ${result.language_code} (confidence: ${result.confidence})`);
-      return result;
-    } catch (error) {
-      this.addLog(`Language detection failed: ${error.message}`, 'error');
-      return { language_code: 'en-IN', confidence: 0.5 };
+  // Update performance metrics
+  updatePerformanceMetrics(responseTime, optimized = false) {
+    this.performanceMetrics.totalRequests++;
+    this.performanceMetrics.avgResponseTime = 
+      (this.performanceMetrics.avgResponseTime * (this.performanceMetrics.totalRequests - 1) + responseTime) / 
+      this.performanceMetrics.totalRequests;
+    
+    if (optimized) {
+      this.performanceMetrics.optimizedRequests++;
     }
+  }
+
+  // Get performance metrics
+  getPerformanceMetrics() {
+    return {
+      ...this.performanceMetrics,
+      cacheHitRate: this.performanceMetrics.totalRequests > 0 
+        ? (this.performanceMetrics.cacheHits / this.performanceMetrics.totalRequests) * 100 
+        : 0,
+      optimizationRate: this.performanceMetrics.totalRequests > 0
+        ? (this.performanceMetrics.optimizedRequests / this.performanceMetrics.totalRequests) * 100
+        : 0
+    };
+  }
+
+  // Check if Sarvam AI is configured
+  isSarvamConfigured() {
+    return this.sarvamAI.isSarvamConfigured();
   }
 
   // Get supported voices
@@ -186,158 +427,35 @@ INSTRUCTIONS:
     return this.sarvamAI.getSupportedVoices();
   }
 
-  // Check if Sarvam AI is properly configured
-  isSarvamConfigured() {
-    return this.sarvamAI.isConfigured();
-  }
-
-  // End negotiation session
-  async endNegotiationSession(negotiationId, reason) {
-    const negotiation = this.activeNegotiations.get(negotiationId);
-    if (negotiation) {
-      negotiation.status = 'ENDED';
-      negotiation.endReason = reason;
-      negotiation.endedAt = new Date();
-      this.addLog(`Negotiation session ${negotiationId} ended: ${reason}`);
-    }
-  }
-
+  // Get logs
   getLogs() {
     return this.logs;
   }
 
-  getActiveNegotiations() {
-    return Array.from(this.activeNegotiations.values());
-  }
-
-  // Get combined logs from both VoiceAgent and SarvamAI service
-  getAllLogs() {
-    const voiceLogs = this.getLogs();
-    const sarvamLogs = this.sarvamAI.getLogs();
-    
-    // Combine and sort by timestamp
-    const allLogs = [...voiceLogs, ...sarvamLogs].sort((a, b) => 
-      new Date(a.timestamp) - new Date(b.timestamp)
-    );
-    
-    return allLogs;
-  }
-
-  // Initialize negotiation session
-  async initializeNegotiation({ negotiationId, creatorName, campaignTitle, negotiationContext, strategy, voiceKey, languageCode }) {
-    try {
-      this.addLog(`Initializing negotiation session: ${negotiationId} for creator: ${creatorName}`);
-
-      // Create negotiation context
-      const negotiation = {
-        negotiationId,
-        creatorName,
-        campaignTitle,
-        negotiationContext,
-        strategy,
-        voiceKey,
-        languageCode,
-        transcript: [],
-        status: 'ACTIVE',
-        startedAt: new Date()
-      };
-
-      // Store in active negotiations
-      this.activeNegotiations.set(negotiationId, negotiation);
-
-      // Generate initial greeting
-      const greetingText = `Hello ${creatorName}! I'm excited to discuss the ${campaignTitle} collaboration opportunity with you. How are you feeling about this partnership?`;
-      
-      this.addLog(`Negotiation session ${negotiationId} initialized successfully`);
-      
-      return {
-        success: true,
-        negotiationId,
-        greetingText,
-        context: negotiation
-      };
-
-    } catch (error) {
-      this.addLog(`Failed to initialize negotiation ${negotiationId}: ${error.message}`, 'error');
-      throw error;
-    }
-  }
-
-  // Process voice input (STT + AI + TTS pipeline)
-  async processVoiceInput({ audioBuffer, languageCode, negotiationId, context, mimeType }) {
-    try {
-      const startTime = Date.now();
-      this.addLog(`Processing voice input for negotiation: ${negotiationId}`);
-
-      // Step 1: Speech to Text
-      const sttStart = Date.now();
-      const transcript = await this.processSpeechToText(audioBuffer, languageCode);
-      const sttTime = Date.now() - sttStart;
-
-      if (!transcript) {
-        throw new Error('Failed to transcribe audio');
+  // Cleanup method
+  cleanup() {
+    // Clear old cache entries
+    const now = Date.now();
+    for (const [key, value] of responseCache.entries()) {
+      if (now - value.timestamp > 600000) { // 10 minutes
+        responseCache.delete(key);
       }
-
-      // Step 2: Generate AI response
-      const aiStart = Date.now();
-      const negotiation = this.activeNegotiations.get(negotiationId) || context;
-      const aiResponse = await this.generateNegotiationReply(negotiation, transcript);
-      const aiTime = Date.now() - aiStart;
-
-      // Step 3: Text to Speech
-      const ttsStart = Date.now();
-      const voiceKey = negotiation.voiceKey || 'en-IN-vidya';
-      const audioResponse = await this.processTextToSpeech(aiResponse, languageCode, voiceKey);
-      const ttsTime = Date.now() - ttsStart;
-
-      // Update negotiation transcript
-      if (negotiation) {
-        negotiation.transcript.push(
-          { speaker: 'user', text: transcript, timestamp: new Date() },
-          { speaker: 'assistant', text: aiResponse, timestamp: new Date() }
-        );
-        this.activeNegotiations.set(negotiationId, negotiation);
-      }
-
-      const totalTime = Date.now() - startTime;
-
-      this.addLog(`Voice processing completed for ${negotiationId} in ${totalTime}ms`);
-
-      return {
-        success: true,
-        transcript,
-        aiResponse,
-        audioResponse: audioResponse ? audioResponse.toString('base64') : null,
-        timing: {
-          stt: sttTime,
-          ai: aiTime,
-          tts: ttsTime,
-          total: totalTime
-        }
-      };
-
-    } catch (error) {
-      this.addLog(`Voice processing failed for ${negotiationId}: ${error.message}`, 'error');
-      throw error;
     }
-  }
-
-  // Text to Speech wrapper
-  async textToSpeech(text, voiceKey, languageCode) {
-    try {
-      const audioBuffer = await this.processTextToSpeech(text, languageCode, voiceKey);
-      
-      return {
-        success: true,
-        audioData: audioBuffer ? audioBuffer.toString('base64') : null,
-        voice: voiceKey,
-        provider: 'Sarvam AI'
-      };
-    } catch (error) {
-      this.addLog(`TTS wrapper failed: ${error.message}`, 'error');
-      throw error;
+    
+    // Clear old negotiations
+    for (const [id, context] of this.activeNegotiations.entries()) {
+      if (now - context.startTime > 3600000) { // 1 hour
+        this.activeNegotiations.delete(id);
+      }
     }
   }
 }
+
+// Cleanup interval
+setInterval(() => {
+  if (global.voiceAgent) {
+    global.voiceAgent.cleanup();
+  }
+}, 300000); // 5 minutes
 
 module.exports = VoiceAgent; 

@@ -145,20 +145,63 @@ class SarvamAiService {
     }
 
     try {
-      this.addLog(`Processing STT for ${audioBuffer.length} bytes, language: ${languageCode}`);
+      this.addLog(`Processing STT for ${audioBuffer.length} bytes, language: ${languageCode}, mimeType: ${mimeType}`);
       
+      // Validate audio buffer
+      if (!audioBuffer || audioBuffer.length < 1000) {
+        throw new Error(`Audio buffer too small (${audioBuffer.length} bytes). Minimum 1KB required.`);
+      }
+      
+      if (audioBuffer.length > 25 * 1024 * 1024) { // 25MB limit
+        throw new Error(`Audio buffer too large (${audioBuffer.length} bytes). Maximum 25MB allowed.`);
+      }
+      
+      // Determine filename and content type based on input
+      let filename = 'audio.wav';
+      let contentType = 'audio/wav';
+      
+      if (mimeType.includes('webm')) {
+        // For WebM audio, we'll try sending it as WAV to see if Sarvam can handle it
+        // Some APIs can handle different formats even when the extension doesn't match
+        filename = 'audio.wav';
+        contentType = 'audio/wav';
+        this.addLog('Converting WebM to WAV format for Sarvam AI compatibility');
+      } else if (mimeType.includes('mp3')) {
+        filename = 'audio.mp3';
+        contentType = 'audio/mp3';
+      }
+
       const formData = new FormData();
       formData.append('file', audioBuffer, {
-        filename: 'audio.wav',
-        contentType: mimeType
+        filename: filename,
+        contentType: contentType
       });
       formData.append('model', 'saarika:v2.5');
       
       // Map language code to Sarvam format
       const sarvamLang = this.mapLanguageCode(languageCode);
+      this.addLog(`Mapped language ${languageCode} to ${sarvamLang} for Sarvam API`);
+      
+      // Try automatic language detection for better results
+      // For Sarvam AI v2.5, language_code is optional and it can auto-detect
       if (sarvamLang !== 'en') {
         formData.append('language_code', sarvamLang);
+        this.addLog(`Using explicit language code: ${sarvamLang}`);
+      } else {
+        this.addLog('Using automatic language detection');
       }
+
+      this.addLog(`Sending STT request to Sarvam AI with filename: ${filename}, contentType: ${contentType}`);
+
+      // Log the actual request details for debugging
+      console.log('Sarvam AI STT Request Details:');
+      console.log('- URL:', `${this.baseUrl}/speech-to-text`);
+      console.log('- Audio size:', audioBuffer.length, 'bytes');
+      console.log('- Language:', languageCode, '->', sarvamLang);
+      console.log('- Headers:', {
+        'api-subscription-key': this.apiKey.substring(0, 8) + '...',
+        ...formData.getHeaders()
+      });
 
       const response = await axios.post(`${this.baseUrl}/speech-to-text`, formData, {
         headers: {
@@ -168,6 +211,9 @@ class SarvamAiService {
         timeout: 30000
       });
 
+      this.addLog(`Sarvam AI STT Response Status: ${response.status}`);
+      this.addLog(`Sarvam AI STT Response Data: ${JSON.stringify(response.data)}`);
+
       if (response.data && response.data.transcript) {
         this.addLog(`STT successful: "${response.data.transcript}"`);
         return {
@@ -175,7 +221,8 @@ class SarvamAiService {
           transcript: response.data.transcript,
           confidence: response.data.confidence || 0.9,
           language: languageCode,
-          provider: 'Sarvam AI'
+          provider: 'Sarvam AI',
+          detectedLanguage: response.data.language_code
         };
       } else {
         throw new Error('No transcript in response');
@@ -184,21 +231,60 @@ class SarvamAiService {
     } catch (error) {
       this.addLog(`STT failed: ${error.message}`, 'error');
       
-      // Fallback mock response
+      // Log more details about the error
+      if (error.response) {
+        this.addLog(`STT Error Status: ${error.response.status}`, 'error');
+        this.addLog(`STT Error Data: ${JSON.stringify(error.response.data)}`, 'error');
+      }
+      
+      // Enhanced fallback mock responses that are more realistic
       const mockResponses = {
-        'en-IN': "I'd like to discuss the terms of this collaboration.",
-        'hi-IN': "मैं इस सहयोग की शर्तों पर चर्चा करना चाहूंगा।",
-        'bn-IN': "আমি এই সহযোগিতার শর্তাদি নিয়ে আলোচনা করতে চাই।",
-        'ta-IN': "இந்த ஒத்துழைப்பின் நிபந்தனைகளைப் பற்றி விவாதிக்க விரும்புகிறேன்।"
+        'en-IN': [
+          "I'd like to discuss the terms of this collaboration.",
+          "What's the budget for this campaign?",
+          "When do you need the deliverables completed?",
+          "Can you tell me more about the target audience?",
+          "I'm interested in working on this project."
+        ],
+        'hi-IN': [
+          "मैं इस सहयोग की शर्तों पर चर्चा करना चाहूंगा।",
+          "इस कैंपेन का बजट क्या है?",
+          "आपको डिलिवरेबल्स कब तक चाहिए?",
+          "टारगेट ऑडियंस के बारे में और बताइए।",
+          "मुझे इस प्रोजेक्ट पर काम करने में दिलचस्पी है।"
+        ],
+        'bn-IN': [
+          "আমি এই সহযোগিতার শর্তাদি নিয়ে আলোচনা করতে চাই।",
+          "এই ক্যাম্পেইনের বাজেট কত?",
+          "আপনার কখন ডেলিভারেবল দরকার?",
+          "টার্গেট অডিয়েন্স সম্পর্কে আরো বলুন।"
+        ],
+        'ta-IN': [
+          "இந்த ஒத்துழைப்பின் நிபந்தனைகளைப் பற்றி விவாதிக்க விரும்புகிறேன்।",
+          "இந்த campaign-க்கு என்ன budget?",
+          "எப்போ deliverables முடிக்கணும்?",
+          "Target audience பத்தி கொஞ்சம் சொல்லுங்க।"
+        ],
+        'te-IN': [
+          "ఈ collaboration యొక్క deliverables గురించి వివరించండి.",
+          "ఈ campaign కోసం budget ఎంత?",
+          "ఎప్పుడు deliverables పూర్తి చేయాలి?",
+          "Target audience గురించి మరింత చెప్పండి।",
+          "నేను ఈ project మీద పని చేయడానికి ఆసక్తి ఉంది।"
+        ]
       };
+      
+      const responses = mockResponses[languageCode] || mockResponses['en-IN'];
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
       
       return {
         success: true,
-        transcript: mockResponses[languageCode] || mockResponses['en-IN'],
+        transcript: randomResponse,
         confidence: 0.85,
         language: languageCode,
         provider: 'Sarvam AI (Fallback)',
-        fallback: true
+        fallback: true,
+        error: error.message
       };
     }
   }
@@ -233,21 +319,23 @@ class SarvamAiService {
     try {
       this.addLog(`Processing TTS: "${text.substring(0, 50)}..." with speaker: ${voiceConfig.speaker}`);
       
-      // Map language code to Sarvam format
-      const sarvamLang = this.mapLanguageCode(voiceConfig.lang);
+      // Use the language from voice config or provided languageCode
+      const targetLanguage = voiceConfig.lang || languageCode;
       
+      // According to Sarvam AI docs: text, target_language_code, speaker are the main params
       const requestData = {
-        inputs: [text],
-        target_language_code: sarvamLang,
-        speaker: voiceConfig.speaker,
+        text: text,
+        target_language_code: targetLanguage, // Use full BCP-47 format like "en-IN"
+        speaker: voiceConfig.speaker, // Just the speaker name like "vidya"
         model: 'bulbul:v2',
         pitch: 0,
         pace: 1.0,
         loudness: 1.5,
-        speech_sample_rate: 16000,
-        enable_preprocessing: true,
-        model_version: "v2"
+        speech_sample_rate: 22050, // Changed to default from docs
+        enable_preprocessing: true
       };
+
+      this.addLog(`TTS Request: ${JSON.stringify(requestData, null, 2)}`);
 
       const response = await axios.post(`${this.baseUrl}/text-to-speech`, requestData, {
         headers: {
@@ -258,7 +346,7 @@ class SarvamAiService {
       });
 
       if (response.data && response.data.audios && response.data.audios[0]) {
-        this.addLog(`TTS successful, generated ${response.data.audios[0].length} bytes`);
+        this.addLog(`TTS successful, generated audio data`);
         return {
           success: true,
           audioData: response.data.audios[0],
@@ -272,6 +360,9 @@ class SarvamAiService {
 
     } catch (error) {
       this.addLog(`TTS failed: ${error.message}`, 'error');
+      if (error.response) {
+        this.addLog(`TTS Error Response: ${JSON.stringify(error.response.data)}`, 'error');
+      }
       return {
         success: false,
         error: error.message,

@@ -33,30 +33,89 @@ const youtube = google.youtube({
   auth: process.env.YOUTUBE_API_KEY
 });
 
-// Generate mock creators for development/testing
-function generateMockCreators(niche, maxResults = 8) {
+// Generate enhanced mock creators based on niche and keywords
+function generateEnhancedMockCreators(niche, searchKeywords = [], maxResults = 8) {
   const mockCreators = [];
-  const creators = [
-    { name: "TechGuru", baseFollowers: 250000, description: "Technology reviews and tutorials" },
-    { name: "GadgetMaster", baseFollowers: 180000, description: "Latest gadget unboxing and reviews" },
-    { name: "TechSavvy", baseFollowers: 320000, description: "In-depth tech analysis and comparisons" },
-    { name: "DigitalPro", baseFollowers: 150000, description: "Digital product reviews and guides" },
-    { name: "TechTalks", baseFollowers: 420000, description: "Technology news and discussions" },
-    { name: "GadgetGirl", baseFollowers: 280000, description: "Tech lifestyle and product reviews" },
-    { name: "CodeCrafter", baseFollowers: 190000, description: "Programming tutorials and tech reviews" },
-    { name: "TechWiz", baseFollowers: 350000, description: "Technology tutorials and how-tos" }
-  ];
+  
+  // Niche-specific creator databases
+  const creatorsByNiche = {
+    'technology': [
+      { name: "TechReviewsHD", baseFollowers: 2500000, description: "In-depth technology reviews and analysis" },
+      { name: "GadgetExplorer", baseFollowers: 1800000, description: "Latest gadget unboxing and reviews" },
+      { name: "TechSavvyPro", baseFollowers: 3200000, description: "Technology comparisons and buying guides" },
+      { name: "DigitalTrends", baseFollowers: 1500000, description: "Digital lifestyle and product reviews" },
+      { name: "TechTalkShow", baseFollowers: 4200000, description: "Technology news and discussions" }
+    ],
+    'premium lifestyle': [
+      { name: "LuxuryLifestyleHD", baseFollowers: 2900000, description: "Premium lifestyle content, luxury products, and F1 racing culture" },
+      { name: "EliteLivingTV", baseFollowers: 2400000, description: "High-end lifestyle, premium brands, and exclusive experiences" },
+      { name: "PremiumLifestylePro", baseFollowers: 2100000, description: "Luxury brands, premium living, and sophisticated lifestyle content" },
+      { name: "RichLifeExperiences", baseFollowers: 1800000, description: "Premium product reviews, luxury travel, and lifestyle vlogs" },
+      { name: "LuxuryContentHub", baseFollowers: 1600000, description: "Exclusive luxury reviews and premium lifestyle experiences" }
+    ],
+    'automotive': [
+      { name: "F1LifestyleIndia", baseFollowers: 3800000, description: "Formula 1 racing, premium automotive lifestyle, and luxury car culture" },
+      { name: "PetrolheadPremium", baseFollowers: 2800000, description: "Premium car reviews, F1 content, and automotive lifestyle" },
+      { name: "RacingLifestyleTV", baseFollowers: 2400000, description: "F1 racing culture, premium vehicles, and motorsport lifestyle" },
+      { name: "MotorsportLuxury", baseFollowers: 2100000, description: "F1, racing, premium automotive content, and luxury lifestyle" },
+      { name: "SupercarCultureHD", baseFollowers: 1900000, description: "Supercar reviews, racing culture, and premium automotive lifestyle" }
+    ],
+    'gaming': [
+      { name: "ProGameReviews", baseFollowers: 4500000, description: "Professional gaming reviews and esports content" },
+      { name: "GameplayMaster", baseFollowers: 3200000, description: "Gaming tutorials and reviews" },
+      { name: "EsportsHQ", baseFollowers: 2800000, description: "Competitive gaming and esports analysis" },
+      { name: "GamingGearPro", baseFollowers: 1900000, description: "Gaming hardware reviews and setup guides" }
+    ],
+    'fashion': [
+      { name: "StyleInfluencer", baseFollowers: 2100000, description: "Fashion trends and style advice" },
+      { name: "FashionReviewsHD", baseFollowers: 1800000, description: "Fashion product reviews and styling tips" },
+      { name: "TrendsetterTV", baseFollowers: 1600000, description: "Fashion trends and brand collaborations" },
+      { name: "StyleGuruOfficial", baseFollowers: 1400000, description: "Personal styling and fashion advice" }
+    ]
+  };
+
+  // Smart niche matching for compound niches
+  let matchedNiche = 'technology'; // default fallback
+  const lowerNiche = niche.toLowerCase();
+  
+  // Direct match first
+  if (creatorsByNiche[lowerNiche]) {
+    matchedNiche = lowerNiche;
+  } else {
+    // Try to find best match from compound niche
+    if (lowerNiche.includes('premium') || lowerNiche.includes('luxury') || lowerNiche.includes('lifestyle')) {
+      matchedNiche = 'premium lifestyle';
+    } else if (lowerNiche.includes('f1') || lowerNiche.includes('racing') || lowerNiche.includes('automotive') || lowerNiche.includes('car')) {
+      matchedNiche = 'automotive';
+    } else if (lowerNiche.includes('fashion') || lowerNiche.includes('style')) {
+      matchedNiche = 'fashion';
+    } else if (lowerNiche.includes('gaming')) {
+      matchedNiche = 'gaming';
+    } else if (lowerNiche.includes('tech')) {
+      matchedNiche = 'technology';
+    }
+  }
+  
+  console.log(`🎬 [YouTube Mock] Mapped niche "${niche}" to "${matchedNiche}"`);
+  const creators = creatorsByNiche[matchedNiche] || creatorsByNiche['technology'];
 
   for (let i = 0; i < Math.min(maxResults, creators.length); i++) {
     const creator = creators[i];
-    const subscriberCount = creator.baseFollowers + Math.floor(Math.random() * 100000);
-    const videoCount = Math.floor(Math.random() * 500) + 100;
-    const viewCount = subscriberCount * (Math.floor(Math.random() * 50) + 20);
+    const subscriberCount = creator.baseFollowers + Math.floor(Math.random() * 200000);
+    const videoCount = Math.floor(Math.random() * 800) + 200;
+    const viewCount = subscriberCount * (Math.floor(Math.random() * 30) + 20);
     const avgViewsPerVideo = Math.round(viewCount / videoCount);
-    const engagementRate = Math.min(((avgViewsPerVideo / subscriberCount) * 100), 15);
+    const engagementRate = Math.min(((avgViewsPerVideo / subscriberCount) * 100), 12);
+    
+    // Enhance description with search keywords if available
+    let enhancedDescription = creator.description;
+    if (searchKeywords && searchKeywords.length > 0) {
+      const relatedKeywords = searchKeywords.slice(0, 2).join(' and ');
+      enhancedDescription = `${creator.description}. Specializes in ${relatedKeywords} content.`;
+    }
     
     mockCreators.push({
-      id: `mock_${i + 1}`,
+      id: `enhanced_${niche}_${i + 1}`,
       name: creator.name,
       platform: 'YouTube',
       platforms: ['YouTube'],
@@ -64,32 +123,34 @@ function generateMockCreators(niche, maxResults = 8) {
       followerCount: subscriberCount,
       viewCount: viewCount,
       videoCount: videoCount,
-      niche: niche,
-      categories: [niche, 'Review', 'Tech'],
-      description: creator.description,
-      bio: creator.description,
+      niche: matchedNiche,
+      categories: searchKeywords && searchKeywords.length > 0 ? [matchedNiche, ...searchKeywords.slice(0, 2)] : [matchedNiche, 'Review', 'Content'],
+      description: enhancedDescription,
+      bio: enhancedDescription,
       profileImageUrl: `https://ui-avatars.com/api/?name=${creator.name}&background=random&size=400`,
-      youtubeChannelUrl: `https://youtube.com/@${creator.name.toLowerCase()}`,
-      channelUrl: `https://youtube.com/@${creator.name.toLowerCase()}`,
+      youtubeChannelUrl: `https://youtube.com/@${creator.name.toLowerCase().replace(/\s+/g, '')}`,
+      channelUrl: `https://youtube.com/@${creator.name.toLowerCase().replace(/\s+/g, '')}`,
       stats: {
         avgViewsPerVideo: avgViewsPerVideo,
         engagementRate: `${engagementRate.toFixed(1)}%`,
         totalViews: viewCount,
         videosUploaded: videoCount,
+        uploadsPerWeek: Math.floor(Math.random() * 4) + 2
       },
       estimatedPricing: {
-        sponsoredVideo: Math.round((subscriberCount / 1000) * 2),
-        sponsored_post: Math.round((subscriberCount / 1000) * 0.5),
-        currency: 'USD'
+        sponsoredVideo: Math.round((subscriberCount / 1000) * 200), // Enhanced pricing
+        sponsored_post: Math.round((subscriberCount / 1000) * 50),
+        currency: 'INR'
       },
-      matchPercentage: Math.floor(Math.random() * 20) + 80,
-      dataSource: 'Mock Data',
-      location: 'India',
-      verifiedStatus: subscriberCount > 200000 ? 'Verified' : 'Unverified'
+      matchPercentage: Math.floor(Math.random() * 15) + 85, // Higher match rates
+      dataSource: 'Enhanced Mock Data',
+      location: '📍 India',
+      verifiedStatus: subscriberCount > 500000 ? 'Verified' : 'Unverified',
+      contactEmail: `${creator.name.toLowerCase().replace(/\s+/g, '.')}@gmail.com`
     });
   }
 
-  console.log(`Generated ${mockCreators.length} mock creators for niche: ${niche}`);
+  console.log(`🎬 Generated ${mockCreators.length} enhanced mock creators for niche: ${niche}`);
   return mockCreators;
 }
 
@@ -111,7 +172,7 @@ async function analyzeCampaignBrief(briefText) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `
-    Analyze the following campaign brief. Your task is to extract key parameters and return them as a single, valid JSON object.
+    Analyze the following campaign brief and extract key information to find the most relevant creators.
 
     Campaign Brief:
     ---
@@ -119,21 +180,23 @@ async function analyzeCampaignBrief(briefText) {
     ---
 
     Instructions:
-    1.  Extract the following fields: "campaignName", "budget", "targetNiche", "minFollowers", "platform", "deliverables".
-    2.  The "budget" and "minFollowers" fields must be numbers, not strings.
-    3.  If any information is missing, make a reasonable assumption (e.g., budget: 5000, minFollowers: 10000).
-    4.  Your response MUST be ONLY the JSON object, enclosed in a single JSON markdown block.
-    5.  All keys and string values in the JSON object must be enclosed in double quotes.
+    1. Extract these fields: "campaignName", "budget", "targetNiche", "minFollowers", "platform", "deliverables", "searchKeywords"
+    2. For "targetNiche": Extract the main category/industry (e.g., "technology", "fashion", "gaming", "lifestyle", "fitness", "food", "travel", "beauty", "automotive", "premium lifestyle")
+    3. For "searchKeywords": Create an array of 3-5 specific search terms that would help find relevant creators (e.g., ["F1 racing", "premium cars", "luxury lifestyle", "beer reviews", "motorsports"])
+    4. The "budget" and "minFollowers" fields must be numbers
+    5. Make intelligent assumptions based on context
+    6. Return ONLY the JSON object in a markdown code block
 
-    Example Response Format:
+    Example:
     \`\`\`json
     {
-      "campaignName": "Example Campaign",
-      "budget": 15000,
-      "targetNiche": "fashion",
-      "minFollowers": 50000,
-      "platform": "Instagram",
-      "deliverables": "3 posts and 5 stories"
+      "campaignName": "Meta RayBan Premium Campaign",
+      "budget": 500000,
+      "targetNiche": "premium lifestyle",
+      "searchKeywords": ["premium sunglasses", "luxury lifestyle", "tech accessories", "fashion tech", "premium eyewear"],
+      "minFollowers": 100000,
+      "platform": "YouTube",
+      "deliverables": "2 sponsored videos, 3 social posts"
     }
     \`\`\`
     `;
@@ -163,42 +226,78 @@ async function analyzeCampaignBrief(briefText) {
     
     // Fallback if all parsing fails
     console.log('Gemini response did not contain valid JSON. Using fallback analysis.');
+    // Try to extract niche from brief text as fallback
+    const lowerBrief = briefText.toLowerCase();
+    let detectedNiche = "technology";
+    
+    if (lowerBrief.includes("fashion") || lowerBrief.includes("style") || lowerBrief.includes("clothing")) {
+      detectedNiche = "fashion";
+    } else if (lowerBrief.includes("food") || lowerBrief.includes("cooking") || lowerBrief.includes("recipe")) {
+      detectedNiche = "food";
+    } else if (lowerBrief.includes("travel") || lowerBrief.includes("tourism") || lowerBrief.includes("destination")) {
+      detectedNiche = "travel";
+    } else if (lowerBrief.includes("fitness") || lowerBrief.includes("health") || lowerBrief.includes("workout")) {
+      detectedNiche = "fitness";
+    } else if (lowerBrief.includes("gaming") || lowerBrief.includes("game") || lowerBrief.includes("esports")) {
+      detectedNiche = "gaming";
+    } else if (lowerBrief.includes("lifestyle") || lowerBrief.includes("premium") || lowerBrief.includes("luxury")) {
+      detectedNiche = "premium lifestyle";
+    } else if (lowerBrief.includes("beauty") || lowerBrief.includes("makeup") || lowerBrief.includes("skincare")) {
+      detectedNiche = "beauty";
+    } else if (lowerBrief.includes("auto") || lowerBrief.includes("car") || lowerBrief.includes("vehicle")) {
+      detectedNiche = "automotive";
+    }
+
     return {
-      campaignName: "Fallback Campaign Analysis",
-      budget: 10000,
-      targetNiche: "tech",
+      campaignName: "Campaign Analysis",
+      budget: 100000,
+      targetNiche: detectedNiche,
+      searchKeywords: [detectedNiche, "review", "unboxing", "lifestyle"],
       minFollowers: 50000,
       platform: "YouTube",
-      deliverables: "1 video, 2 social posts"
+      deliverables: "2 sponsored videos, 3 social posts"
     };
   } catch (error) {
     console.error('Error analyzing campaign brief:', error);
     // Return default analysis if Gemini fails
     return {
-      campaignName: "Sample Campaign",
-      budget: 10000,
-      targetNiche: "tech",
+      campaignName: "Default Campaign",
+      budget: 100000,
+      targetNiche: "technology",
+      searchKeywords: ["technology", "tech review", "gadgets", "innovation"],
       minFollowers: 50000,
       platform: "YouTube",
-      deliverables: "1 video, 2 social posts"
+      deliverables: "2 sponsored videos, 3 social posts"
     };
   }
 }
 
-// Fetch real creators from YouTube based on niche
-async function searchYouTubeCreators(niche, minFollowers = 50000, maxFollowers = 5000000, maxResults = 8) {
+// Fetch real creators from YouTube based on niche and search keywords
+async function searchYouTubeCreators(niche, searchKeywords = [], minFollowers = 50000, maxFollowers = 5000000, maxResults = 8) {
   try {
     if (!process.env.YOUTUBE_API_KEY) {
-      console.log('YouTube API key not configured, using mock creators.');
-      return generateMockCreators(niche, maxResults);
+      console.log('🎬 [YouTube] API key not configured, using enhanced mock creators.');
+      console.log(`🎬 [YouTube] Smart niche mapping for: "${niche}"`);
+      return generateEnhancedMockCreators(niche, searchKeywords, maxResults);
     }
 
-    const searchQueries = [
-      `${niche} review`,
-      `${niche} unboxing`,
-      `${niche} tutorial`,
-      `best ${niche} channel`
-    ];
+    // Create search queries from keywords and niche
+    let searchQueries = [];
+    if (searchKeywords && searchKeywords.length > 0) {
+      // Use specific keywords from campaign analysis
+      searchQueries = searchKeywords.map(keyword => `${keyword} review`);
+      searchQueries.push(...searchKeywords.map(keyword => `${keyword} channel`));
+    } else {
+      // Fallback to generic niche searches
+      searchQueries = [
+        `${niche} review`,
+        `${niche} unboxing`,
+        `${niche} tutorial`,
+        `best ${niche} channel`
+      ];
+    }
+    
+    console.log(`🎬 [YouTube Search] Using queries:`, searchQueries.slice(0, 4));
 
     const allCreators = [];
     
@@ -257,9 +356,9 @@ async function searchYouTubeCreators(niche, minFollowers = 50000, maxFollowers =
                   },
                   // Estimated pricing based on subscriber count
                   estimatedPricing: {
-                    sponsoredVideo: Math.round((subscriberCount / 1000) * 2), // $2 per 1K subscribers
-                    sponsored_post: Math.round((subscriberCount / 1000) * 0.5),
-                    currency: 'USD'
+                    sponsoredVideo: Math.round((subscriberCount / 1000) * 166), // ₹166 per 1K subscribers (≈$2 * 83)
+                    sponsored_post: Math.round((subscriberCount / 1000) * 42), // ₹42 per 1K subscribers (≈$0.5 * 83)
+                    currency: 'INR'
                   },
                   matchPercentage: Math.floor(Math.random() * 20) + 80, // 80-100% match
                   dataSource: 'YouTube API',
@@ -323,6 +422,22 @@ async function searchInstagramCreators(niche, minFollowers = 50000, maxFollowers
       { username: 'igyaan', name: 'Bharat Nagpal', followers: 890000 },
       { username: 'c4etech', name: 'Ash', followers: 750000 }
     ],
+    'premium lifestyle': [
+      { username: 'luxurylifestyle_official', name: 'Premium Lifestyle Co', followers: 2800000 },
+      { username: 'f1_lifestyle_india', name: 'F1 Lifestyle India', followers: 1900000 },
+      { username: 'luxurycars_india', name: 'Luxury Cars India', followers: 2400000 },
+      { username: 'premiumwatch_collector', name: 'Premium Watch Collector', followers: 1650000 },
+      { username: 'elite_lifestyle_mumbai', name: 'Elite Lifestyle Mumbai', followers: 1850000 },
+      { username: 'highend_automotive', name: 'High-End Automotive', followers: 2100000 }
+    ],
+    'automotive': [
+      { username: 'supercar_india', name: 'Supercar India', followers: 3200000 },
+      { username: 'petrolhead_mumbai', name: 'Petrolhead Mumbai', followers: 1800000 },
+      { username: 'f1_fan_india', name: 'F1 Fan India', followers: 2200000 },
+      { username: 'luxury_motors', name: 'Luxury Motors', followers: 1900000 },
+      { username: 'racing_lifestyle', name: 'Racing Lifestyle', followers: 1650000 },
+      { username: 'motorsport_india', name: 'Motorsport India', followers: 1450000 }
+    ],
     'fashion': [
       { username: 'komal.pandey', name: 'Komal Pandey', followers: 1800000 },
       { username: 'sejalsays', name: 'Sejal Kumar', followers: 1500000 },
@@ -376,7 +491,39 @@ async function searchInstagramCreators(niche, minFollowers = 50000, maxFollowers
   };
 
   const creators = [];
-  const nicheCreators = topInstagramCreators[niche.toLowerCase()] || topInstagramCreators['technology'];
+  
+  // Smart niche matching for compound niches
+  let matchedNiche = 'technology'; // default fallback
+  const lowerNiche = niche.toLowerCase();
+  
+  // Direct match first
+  if (topInstagramCreators[lowerNiche]) {
+    matchedNiche = lowerNiche;
+  } else {
+    // Try to find best match from compound niche
+    if (lowerNiche.includes('premium') || lowerNiche.includes('luxury') || lowerNiche.includes('lifestyle')) {
+      matchedNiche = 'premium lifestyle';
+    } else if (lowerNiche.includes('f1') || lowerNiche.includes('racing') || lowerNiche.includes('automotive') || lowerNiche.includes('car')) {
+      matchedNiche = 'automotive';
+    } else if (lowerNiche.includes('fashion') || lowerNiche.includes('style')) {
+      matchedNiche = 'fashion';
+    } else if (lowerNiche.includes('food') || lowerNiche.includes('cooking')) {
+      matchedNiche = 'food';
+    } else if (lowerNiche.includes('travel')) {
+      matchedNiche = 'travel';
+    } else if (lowerNiche.includes('fitness') || lowerNiche.includes('health')) {
+      matchedNiche = 'fitness';
+    } else if (lowerNiche.includes('gaming')) {
+      matchedNiche = 'gaming';
+    } else if (lowerNiche.includes('beauty') || lowerNiche.includes('makeup')) {
+      matchedNiche = 'beauty';
+    } else if (lowerNiche.includes('tech')) {
+      matchedNiche = 'technology';
+    }
+  }
+  
+  console.log(`📸 [Instagram] Mapped niche "${niche}" to "${matchedNiche}"`);
+  const nicheCreators = topInstagramCreators[matchedNiche] || topInstagramCreators['technology'];
   
   // Filter creators within follower range and take top ones
   const filteredCreators = nicheCreators.filter(creator => 
@@ -408,10 +555,10 @@ async function searchInstagramCreators(niche, minFollowers = 50000, maxFollowers
       subscriberCount: creator.followers,
       followingCount: Math.floor(Math.random() * 3000) + 500,
       postCount: Math.floor(Math.random() * 800) + 200,
-      niche: niche,
-      categories: [niche, 'Content Creation', 'Brand Partnerships'],
-      description: `Top ${niche} influencer with ${(creator.followers/1000000).toFixed(1)}M followers. Known for authentic content, high engagement rates, and successful brand partnerships.`,
-      bio: `✨ Top ${niche.charAt(0).toUpperCase() + niche.slice(1)} Creator | 📈 ${(creator.followers/1000000).toFixed(1)}M Followers | 🏆 Verified Account`,
+      niche: matchedNiche,
+      categories: [matchedNiche, 'Content Creation', 'Brand Partnerships'],
+      description: `${matchedNiche} influencer specializing in ${creator.name.includes('F1') ? 'Formula 1 racing and premium automotive lifestyle' : matchedNiche.includes('premium') ? 'luxury lifestyle, premium brands, and high-end experiences' : matchedNiche.includes('automotive') ? 'automotive content, racing culture, and premium vehicles' : `${matchedNiche} content`}. ${(creator.followers/1000000).toFixed(1)}M followers with authentic content and premium brand partnerships.`,
+      bio: `🏆 ${matchedNiche.charAt(0).toUpperCase() + matchedNiche.slice(1)} Creator | 📈 ${(creator.followers/1000000).toFixed(1)}M Followers | ✨ Premium Content | 🔥 High Engagement`,
       profileImageUrl: `https://picsum.photos/400/400?random=${i + 200}`,
       instagramUrl: `https://instagram.com/${creator.username}`,
       channelUrl: `https://instagram.com/${creator.username}`,
@@ -423,9 +570,9 @@ async function searchInstagramCreators(niche, minFollowers = 50000, maxFollowers
         reelsPerWeek: Math.floor(Math.random() * 10) + 3
       },
       pricing: {
-        postPrice: Math.floor(creator.followers * 0.012), // Premium pricing for top creators
-        storyPrice: Math.floor(creator.followers * 0.006),
-        reelPrice: Math.floor(creator.followers * 0.018)
+        postPrice: Math.floor(creator.followers * 1.0), // ₹1 per follower for posts (≈$0.012 * 83)
+        storyPrice: Math.floor(creator.followers * 0.5), // ₹0.5 per follower for stories (≈$0.006 * 83)
+        reelPrice: Math.floor(creator.followers * 1.5) // ₹1.5 per follower for reels (≈$0.018 * 83)
       },
       dataSource: 'Real Instagram Top Creators',
       verifiedAccount: true,
@@ -450,135 +597,7 @@ async function searchInstagramCreators(niche, minFollowers = 50000, maxFollowers
   }
 }
 
-// Enhanced YouTube creator search with real API integration
-async function searchYouTubeCreators(niche, minFollowers = 50000, maxFollowers = 5000000, maxResults = 4) {
-  console.log(`🎬 [YouTube Search] Niche: ${niche}, Subscribers: ${minFollowers}-${maxFollowers}`);
-  
-  // Real top creators in each niche - manually curated list of verified channels
-  const topCreatorsByNiche = {
-    'technology': [
-      { id: 'UCBJycsmduvYEL83R_U4JriQ', name: 'Marques Brownlee', handle: '@MKBHD', subscribers: 17800000 },
-      { id: 'UCj34AOIMZdUMX5n8KTY5YGw', name: 'Technical Guruji', handle: '@TechnicalGuruji', subscribers: 23000000 },
-      { id: 'UCWwgaK7x0_FR1goTXusdwKA', name: 'Unbox Therapy', handle: '@UnboxTherapy', subscribers: 18100000 },
-      { id: 'UCX_WM2O-X96URC5n66G-hvw', name: 'Linus Tech Tips', handle: '@LinusTechTips', subscribers: 15600000 },
-      { id: 'UCaTUtReqKmzJ88YaZGFlqCA', name: 'Trakin Tech', handle: '@TrakinTech', subscribers: 9900000 },
-      { id: 'UC7cF-5iW5LsJHKx7xGM-HlA', name: 'Geekyranjit', handle: '@GeekyRanjit', subscribers: 1850000 },
-      { id: 'UCgBVkKoOAr3ajSdqitdONDA', name: 'C4ETech', handle: '@c4etech', subscribers: 1120000 },
-      { id: 'UCaBWhjZxU-0-TsTsqQ_4zEQ', name: 'iGyaan', handle: '@iGyaan', subscribers: 2800000 }
-    ],
-    'fashion': [
-      { id: 'UCxSz6JVYmzVhtkraHWZC7HQ', name: 'Emma Chamberlain', handle: '@emmachamberlain', subscribers: 12200000 },
-      { id: 'UC6I8sruJbJvOLsM8_HeJO8w', name: 'Sejal Kumar', handle: '@SejSays', subscribers: 1500000 },
-      { id: 'UCzWfhCLwwNXUEjHcYb2c7Lg', name: 'Komal Pandey', handle: '@komalpandeyy', subscribers: 1800000 },
-      { id: 'UC9gABdUE4yNGNJsUfUNT8cw', name: 'Simmi Singh', handle: '@SimmisViewsAndVlogs', subscribers: 850000 },
-      { id: 'UCaKzLUr7c_VBm0WwY-N3Q0w', name: 'Shreya Jain', handle: '@ShreyaJain03', subscribers: 920000 },
-      { id: 'UCW_JbG-JC4aG8-9c0N_jZ4Q', name: 'Aashna Shroff', handle: '@TheSnobJournal', subscribers: 640000 }
-    ],
-    'fitness': [
-      { id: 'UCmY3dWKw_qTR8v7TdCJWHhg', name: 'Athlean-X', handle: '@athleanx', subscribers: 13700000 },
-      { id: 'UCFjc9H89-RpWuIStDqhO7AQ', name: 'Cult Fit', handle: '@cultfit', subscribers: 1900000 },
-      { id: 'UCBNmIl1wdm9PdKkv_O-Q1g', name: 'Fit Tuber', handle: '@FitTuber', subscribers: 6800000 },
-      { id: 'UCABjJ_JOiYs1q8xB8EZK_OQ', name: 'Roberta\'s Gym', handle: '@RobertasGym', subscribers: 950000 },
-      { id: 'UCgB9v1_9UuFqMH7TG8QK_OQ', name: 'BeerBiceps', handle: '@BeerBiceps', subscribers: 4200000 }
-    ],
-    'food': [
-      { id: 'UCIz6YGn4H9G95gIBZBl9k7A', name: 'Nisha Madhulika', handle: '@NishaMadhulika', subscribers: 12600000 },
-      { id: 'UCLyC7bB0LCyCNdEDCPg8_iQ', name: 'Kabita\'s Kitchen', handle: '@KabitasKitchen', subscribers: 10900000 },
-      { id: 'UCF8Sa2O_aqJ9D-PQCD3sYxQ', name: 'Street Food & Travel TV India', handle: '@StreetFoodTravelTVIndia', subscribers: 2100000 },
-      { id: 'UCeqOlR2PY3xmKGLEIamBg2w', name: 'Food Fusion', handle: '@FoodFusionOriginal', subscribers: 4800000 },
-      { id: 'UCWFdOIj4dzQKE0WKXYKOFjg', name: 'Cooking Shooking', handle: '@CookingShooking', subscribers: 11200000 }
-    ],
-    'travel': [
-      { id: 'UCyEd6QBSgat5kkC6svyjudA', name: 'Drew Binsky', handle: '@DrewBinsky', subscribers: 4200000 },
-      { id: 'UCuSPCQS_jJjVdfxS7RDSM8w', name: 'Mountain Trekker', handle: '@MountainTrekker', subscribers: 890000 },
-      { id: 'UC_c9pywE_jcb_JZILVb-Pbw', name: 'Deepika Mhatre', handle: '@DeepikaMhatre', subscribers: 1300000 },
-      { id: 'UCsf8a5VcjU-TdKPPjWKIWWw', name: 'Tanya Khanijow', handle: '@TanyaKhanijow', subscribers: 1800000 },
-      { id: 'UCfxvU2VPHhjAONPfBEasTdw', name: 'Nomadic Indian', handle: '@NomadicIndian', subscribers: 780000 }
-    ],
-    'lifestyle': [
-      { id: 'UCxSz6JVYmzVhtkraHWZC7HQ', name: 'Emma Chamberlain', handle: '@emmachamberlain', subscribers: 12200000 },
-      { id: 'UCJ2IyZPKdCkl4r8-CqtA1uw', name: 'Niharika NM', handle: '@NiharikaNM', subscribers: 1100000 },
-      { id: 'UCQ2JvOlR2PY3xmKGLEIamBg2w', name: 'Mostly Sane', handle: '@MostlySane', subscribers: 4600000 },
-      { id: 'UC_KwWPrEF-B0bHMNwzLjKQA', name: 'Miss Malini', handle: '@MissMalini', subscribers: 920000 },
-      { id: 'UC9YJ-8NVRntlH4FGj20_HEg', name: 'Dolly Singh', handle: '@DollySingh', subscribers: 650000 }
-    ],
-    'beauty': [
-      { id: 'UCVRQOeoHpZ24PQZE7l6dUcA', name: 'James Charles', handle: '@jamescharles', subscribers: 23800000 },
-      { id: 'UC8v4vz_n2rys6Yxpj8LuOBA', name: 'Malvika Sitlani', handle: '@MalvikaSitlaniOfficial', subscribers: 1900000 },
-      { id: 'UCJw_s6IQm_aqKi_2d1fJCgQ', name: 'Shreya Jain', handle: '@ShreyaJain03', subscribers: 920000 },
-      { id: 'UCtWXqKfL3L5HGbTSdGTdVA', name: 'Debasree Banerjee', handle: '@DebasreeBanerjee', subscribers: 2200000 },
-      { id: 'UCgB9v1_9UuFqMH7TG8QK_OQ', name: 'Corallista', handle: '@Corallista', subscribers: 1450000 }
-    ],
-    'gaming': [
-      { id: 'UCYAJr7_6WjJpKqK0EZOKZqA', name: 'CarryMinati', handle: '@CarryMinati', subscribers: 40000000 },
-      { id: 'UCj22tfcQrWG7EMEKS0qzfQg', name: 'Total Gaming', handle: '@TotalGaming093', subscribers: 36500000 },
-      { id: 'UCBnxEdpoZwstJqC1yZpOjRA', name: 'Techno Gamerz', handle: '@TechnoGamerzOfficial', subscribers: 34800000 },
-      { id: 'UC_vcKmg67vjMP7ciLnSxSHQ', name: 'Live Insaan', handle: '@LiveInsaan', subscribers: 20500000 },
-      { id: 'UCfLlxrIb_qx9MnbgP4pTJ9w', name: 'MortaL', handle: '@SoulMorTal', subscribers: 6800000 }
-    ]
-  };
-
-  const creators = [];
-  const nicheCreators = topCreatorsByNiche[niche.toLowerCase()] || topCreatorsByNiche['technology'];
-  
-  // Filter creators within follower range and take top ones
-  const filteredCreators = nicheCreators.filter(creator => 
-    creator.subscribers >= minFollowers && creator.subscribers <= maxFollowers
-  ).slice(0, maxResults);
-
-  // If we don't have enough in range, add some with scaled subscribers
-  const remainingSlots = maxResults - filteredCreators.length;
-  if (remainingSlots > 0) {
-    const additionalCreators = nicheCreators.slice(0, remainingSlots).map(creator => ({
-      ...creator,
-      subscribers: Math.floor(Math.random() * (maxFollowers - minFollowers)) + minFollowers
-    }));
-    filteredCreators.push(...additionalCreators);
-  }
-
-  // Convert to our creator format
-  for (let i = 0; i < filteredCreators.length; i++) {
-    const creator = filteredCreators[i];
-    const viewCount = creator.subscribers * (25 + Math.random() * 35); // 25-60 views per subscriber ratio
-    
-    creators.push({
-      id: `yt_real_${creator.id}_${Date.now()}`,
-      name: creator.name,
-      handle: creator.handle,
-        platform: 'YouTube',
-      platforms: ['YouTube'],
-      subscriberCount: creator.subscribers,
-      followerCount: creator.subscribers,
-      viewCount: Math.floor(viewCount),
-      videoCount: Math.floor(Math.random() * 400) + 100,
-        niche: niche,
-      categories: [niche, 'Education', 'Entertainment', 'Reviews'],
-      description: `Professional ${niche} content creator with ${(creator.subscribers/1000000).toFixed(1)}M subscribers. One of the top creators in the ${niche} space with highly engaged audience and premium content quality.`,
-      bio: `🎬 Top ${niche.charAt(0).toUpperCase() + niche.slice(1)} Creator | 📈 ${(creator.subscribers/1000000).toFixed(1)}M Subscribers | 🏆 Verified Channel`,
-      profileImageUrl: `https://picsum.photos/400/400?random=${i + 50}`,
-      youtubeChannelUrl: `https://youtube.com/${creator.handle}`,
-      channelUrl: `https://youtube.com/${creator.handle}`,
-      stats: {
-        avgViewsPerVideo: Math.floor(creator.subscribers * (0.08 + Math.random() * 0.15)), // 8-23% view rate
-        engagementRate: `${(3 + Math.random() * 7).toFixed(1)}%`, // 3-10% for top creators
-        totalViews: Math.floor(viewCount),
-        videosUploaded: Math.floor(Math.random() * 400) + 100,
-        uploadsPerWeek: Math.floor(Math.random() * 5) + 2
-      },
-      pricing: {
-        sponsoredVideo: Math.floor(creator.subscribers * 0.025), // Premium pricing for top creators
-        productPlacement: Math.floor(creator.subscribers * 0.018),
-        channelMembership: Math.floor(creator.subscribers * 0.012)
-      },
-      dataSource: 'Real YouTube Top Creators',
-      verifiedChannel: true,
-      lastUpdated: new Date().toISOString()
-    });
-  }
-
-  console.log(`🎬 [YouTube] Found ${creators.length} real top creators, range: ${creators[creators.length-1]?.subscriberCount?.toLocaleString()}-${creators[0]?.subscriberCount?.toLocaleString()} subscribers`);
-  return creators;
-}
+// Remove duplicate function - using the enhanced version above
 
 // Update the main discovery endpoint to include Sanjay by default
 router.post('/discover-creators', async (req, res) => {
@@ -604,35 +623,59 @@ router.post('/discover-creators', async (req, res) => {
 
     let allCreators = [];
 
-    // Always include Sanjay as the first creator
+    // Always include Sanjay Malladi as the first creator with adaptive profile
+    // Adapt Sanjay's expertise based on campaign niche
+    let sanjayExpertise = "cutting-edge technology and AI innovations";
+    let sanjayBio = "🚀 Tech Entrepreneur | AI/ML Expert | Innovation Leader";
+    let sanjayCategories = [niche, 'Technology', 'AI/ML', 'Entrepreneurship', 'Startups'];
+    
+    const lowerNiche = niche.toLowerCase();
+    if (lowerNiche.includes('premium') || lowerNiche.includes('luxury') || lowerNiche.includes('lifestyle')) {
+      sanjayExpertise = "luxury tech products and premium lifestyle experiences";
+      sanjayBio = "🏆 Premium Lifestyle Tech | Luxury Product Reviews | Elite Experiences";
+      sanjayCategories = [niche, 'Premium Lifestyle', 'Luxury Tech', 'Technology', 'AI/ML'];
+    } else if (lowerNiche.includes('f1') || lowerNiche.includes('racing') || lowerNiche.includes('automotive') || lowerNiche.includes('car')) {
+      sanjayExpertise = "premium automotive technology and high-performance vehicles";
+      sanjayBio = "🏎️ Automotive Tech Expert | F1 Technology | Premium Vehicles | AI Innovation";
+      sanjayCategories = [niche, 'Automotive Technology', 'Racing Tech', 'Technology', 'AI/ML'];
+    } else if (lowerNiche.includes('gaming')) {
+      sanjayExpertise = "gaming technology and esports innovation";
+      sanjayBio = "🎮 Gaming Tech Expert | Esports Innovation | AI Gaming | Technology Leader";
+      sanjayCategories = [niche, 'Gaming Technology', 'Esports', 'Technology', 'AI/ML'];
+    } else if (lowerNiche.includes('fashion') || lowerNiche.includes('style')) {
+      sanjayExpertise = "tech-fashion and wearable technology trends";
+      sanjayBio = "👔 Tech Fashion Expert | Wearable Tech | Style Innovation | AI Fashion";
+      sanjayCategories = [niche, 'Tech Fashion', 'Wearables', 'Technology', 'AI/ML'];
+    }
+
     const sanjayCreator = {
       id: 'creator_sanjay_001',
-      name: 'Sanjay Tech Solutions',
+      name: 'Sanjay Malladi',
         platform: 'YouTube',
       platforms: ['YouTube', 'Instagram'],
-      subscriberCount: 850000,
-      followerCount: 850000,
-      viewCount: 12000000,
-      videoCount: 180,
+      subscriberCount: 2800000,
+      followerCount: 2800000,
+      viewCount: 45000000,
+      videoCount: 320,
         niche: niche,
-      categories: [niche, 'Technology', 'Reviews', 'Tutorials'],
-      description: `Tech entrepreneur and content creator specializing in ${niche}. Known for in-depth reviews and practical tutorials that help viewers make informed decisions in the ${niche} space.`,
-      bio: `🚀 Tech Entrepreneur | ${niche} Expert | Building the future of tech | 850K+ subscribers`,
-      profileImageUrl: 'https://picsum.photos/400/400?random=999',
-      youtubeChannelUrl: 'https://youtube.com/c/SanjayTechSolutions',
-      instagramUrl: 'https://instagram.com/sanjaytechsolutions',
-      channelUrl: 'https://youtube.com/c/SanjayTechSolutions',
+      categories: sanjayCategories,
+      description: `Tech entrepreneur and content creator specializing in ${sanjayExpertise}. Known for in-depth analysis of emerging technologies, AI/ML insights, and ${niche} content creation.`,
+      bio: `${sanjayBio} | Building the future of tech | 2.8M+ subscribers`,
+      profileImageUrl: 'https://avatar.vercel.sh/sanjaymalladi?size=80&text=SM',
+      youtubeChannelUrl: 'https://www.youtube.com/@sanjaymalladi',
+      instagramUrl: 'https://instagram.com/sanjaymalladi',
+      channelUrl: 'https://www.youtube.com/@sanjaymalladi',
       stats: {
-        avgViewsPerVideo: 45000,
-        engagementRate: '9.2%',
-        totalViews: 12000000,
-        videosUploaded: 180,
+        avgViewsPerVideo: 150000,
+        engagementRate: '8.5%',
+        totalViews: 45000000,
+        videosUploaded: 320,
         uploadsPerWeek: 3
       },
       pricing: {
-        sponsoredVideo: 15000,
-        productPlacement: 10000,
-        channelMembership: 5000
+        sponsoredVideo: 2075000, // ₹20.75 lakh (≈$25,000 * 83)
+        productPlacement: 1494000, // ₹14.94 lakh (≈$18,000 * 83)
+        channelMembership: 664000 // ₹6.64 lakh (≈$8,000 * 83)
       },
       campaignMatch: {
         overallMatch: 95,
@@ -770,7 +813,7 @@ router.post('/start', async (req, res) => {
       logs: [
         'Crew starting execution...',
         '[Campaign Analyst] Reading and analyzing the campaign brief...',
-        `[Campaign Analyst] Identified key parameters: budget $${campaignParams.budget}, niche '${campaignParams.targetNiche}', platform '${campaignParams.platform}'.`,
+        `[Campaign Analyst] Identified key parameters: budget ₹${(campaignParams.budget * 83).toLocaleString()}, niche '${campaignParams.targetNiche}', platform '${campaignParams.platform}'.`,
         '[Creator Scout] Received campaign parameters. Searching creator database...',
         `[Creator Scout] Found ${creators.length} matching creators.`,
         '[Creator Scout] Filtering and ranking top creators...',
@@ -913,9 +956,15 @@ router.post('/process-brief', upload.single('campaignBrief'), async (req, res) =
       ]
     };
     
+    // Store campaign analysis globally for use in find-creators
+    global.latestCampaignAnalysis = campaignParams;
+    
     res.json({
       success: true,
-      data: campaignData,
+      data: {
+        ...campaignData,
+        campaignAnalysis: campaignParams // Include analysis in data for frontend
+      },
       campaignAnalysis: campaignParams,
       message: 'Campaign brief processed successfully'
     });
@@ -934,7 +983,7 @@ router.post('/find-creators', async (req, res) => {
   try {
     console.log('🔍 Finding creators for campaign...');
     
-    const { campaignId, targetAudience, briefSummary, keyTalkingPoints } = req.body;
+    const { campaignId, targetAudience, briefSummary, keyTalkingPoints, campaignAnalysis } = req.body;
     
     if (!targetAudience) {
       return res.status(400).json({
@@ -943,15 +992,100 @@ router.post('/find-creators', async (req, res) => {
       });
     }
 
-    // Search for creators based on target audience (niche)
-    const niche = targetAudience.toLowerCase();
-    const creators = await searchYouTubeCreators(niche, 50000, 5000000, 8);
+    // Extract search keywords from campaign analysis if available
+    let searchKeywords = [];
+    let niche = targetAudience.toLowerCase();
+    
+    // Use provided campaign analysis or fallback to global stored analysis
+    const analysis = campaignAnalysis || global.latestCampaignAnalysis;
+    
+    if (analysis && analysis.searchKeywords) {
+      searchKeywords = analysis.searchKeywords;
+      if (analysis.targetNiche) {
+        niche = analysis.targetNiche.toLowerCase();
+      }
+    }
+    
+    console.log(`🎯 Campaign targeting: ${niche}`);
+    console.log(`🔍 Using search keywords:`, searchKeywords);
+    
+    let allCreators = [];
+
+    // Always include Sanjay Malladi as the first creator, dynamically matched to campaign
+    const sanjayNicheDescription = {
+      'technology': 'cutting-edge technology and AI innovations',
+      'premium lifestyle': 'luxury tech products and premium lifestyle experiences',
+      'automotive': 'premium automotive technology and high-performance vehicles',
+      'gaming': 'gaming technology and esports innovation',
+      'fashion': 'tech-fashion and wearable technology trends',
+      'fitness': 'fitness technology and health innovations',
+      'food': 'food technology and culinary innovations',
+      'travel': 'travel technology and digital nomad lifestyle',
+      'beauty': 'beauty technology and innovative cosmetic products'
+    };
+    
+    const sanjaySpecialty = sanjayNicheDescription[niche] || 'technology innovation and digital transformation';
+    const campaignKeywords = searchKeywords.length > 0 ? searchKeywords.slice(0, 2).join(' and ') : niche;
+    
+    const sanjayCreator = {
+      id: 'creator_sanjay_001',
+      name: 'Sanjay Malladi',
+      platform: 'YouTube',
+      platforms: ['YouTube', 'Instagram'],
+      subscriberCount: 2800000,
+      followerCount: 2800000,
+      viewCount: 45000000,
+      videoCount: 320,
+      niche: niche,
+      categories: [niche, ...(searchKeywords.slice(0, 2)), 'Technology', 'Innovation'],
+      description: `Tech entrepreneur and content creator specializing in ${sanjaySpecialty}. Renowned for ${campaignKeywords} content and building innovative tech solutions.`,
+      bio: `🚀 Tech Entrepreneur | ${niche} Expert | Innovation Leader | ${campaignKeywords} Specialist | 2.8M+ subscribers`,
+      profileImageUrl: 'https://avatar.vercel.sh/sanjaymalladi?size=80&text=SM',
+      youtubeChannelUrl: 'https://www.youtube.com/@sanjaymalladi',
+      instagramUrl: 'https://instagram.com/sanjaymalladi',
+      channelUrl: 'https://www.youtube.com/@sanjaymalladi',
+      stats: {
+        avgViewsPerVideo: 150000,
+        engagementRate: '8.5%',
+        totalViews: 45000000,
+        videosUploaded: 320,
+        uploadsPerWeek: 3
+      },
+      pricing: {
+        sponsoredVideo: 2075000, // ₹20.75 lakh (≈$25,000 * 83)
+        productPlacement: 1494000, // ₹14.94 lakh (≈$18,000 * 83)
+        channelMembership: 664000 // ₹6.64 lakh (≈$8,000 * 83)
+      },
+      campaignMatch: {
+        overallMatch: 95,
+        nicheRelevance: 98,
+        audienceAlignment: 92,
+        contentQuality: 96,
+        engagementScore: 94
+      },
+      dataSource: 'Featured Creator',
+      lastUpdated: new Date().toISOString(),
+      location: '📍 India',
+      contactEmail: 'sanjaymallladi12@gmail.com'
+    };
+    
+    allCreators.push(sanjayCreator);
+
+    // Search YouTube creators (limit to fewer since we already have Sanjay)
+    console.log('🎬 Searching YouTube creators...');
+    const youtubeCreators = await searchYouTubeCreators(niche, searchKeywords, 50000, 5000000, 3);
+    allCreators.push(...youtubeCreators);
+
+    // Search Instagram creators
+    console.log('📸 Searching Instagram creators...');
+    const instagramCreators = await searchInstagramCreators(niche, 50000, 5000000, 4);
+    allCreators.push(...instagramCreators);
 
     // Add creator IDs and email placeholders for frontend compatibility
-    const creatorsWithIds = creators.map(creator => ({
+    const creatorsWithIds = allCreators.map(creator => ({
       ...creator,
       creatorId: creator.id,
-      email: `${creator.name.toLowerCase().replace(/\s+/g, '.')}@example.com` // Placeholder email
+      email: creator.contactEmail || `${creator.name.toLowerCase().replace(/\s+/g, '.')}@example.com` // Use real email if available
     }));
 
     res.json({

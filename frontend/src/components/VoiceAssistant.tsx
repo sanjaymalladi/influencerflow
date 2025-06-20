@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,9 @@ import {
   PhoneCall,
   User,
   Bot,
-  Languages
+  Languages,
+  Settings,
+  Zap
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -25,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AudioConverter } from '@/utils/audioConverter';
 
 interface VoiceMessage {
   id: string;
@@ -32,37 +35,26 @@ interface VoiceMessage {
   text: string;
   timestamp: Date;
   audioUrl?: string;
+  language?: string;
 }
 
-// Updated voices with multiple languages based on Sarvam AI
+// Enhanced language support with complete Vidya voice coverage
 const SUPPORTED_LANGUAGES = {
-  'en-IN': { name: 'English (India)', code: 'en-IN' },
-  'hi-IN': { name: 'हिन्दी (Hindi)', code: 'hi-IN' },
-  'bn-IN': { name: 'বাংলা (Bengali)', code: 'bn-IN' },
-  'ta-IN': { name: 'தமிழ் (Tamil)', code: 'ta-IN' },
-  'te-IN': { name: 'తెలుగు (Telugu)', code: 'te-IN' },
-  'ml-IN': { name: 'മലയാളം (Malayalam)', code: 'ml-IN' },
-  'gu-IN': { name: 'ગુજરાતી (Gujarati)', code: 'gu-IN' },
-  'kn-IN': { name: 'ಕನ್ನಡ (Kannada)', code: 'kn-IN' },
-  'or-IN': { name: 'ଓଡ଼ିଆ (Odia)', code: 'or-IN' },
-  'pa-IN': { name: 'ਪੰਜਾਬੀ (Punjabi)', code: 'pa-IN' }
+  'en-IN': { name: 'English', nativeName: 'English', code: 'en-IN' },
+  'hi-IN': { name: 'Hindi', nativeName: 'हिन्दी', code: 'hi-IN' },
+  'bn-IN': { name: 'Bengali', nativeName: 'বাংলা', code: 'bn-IN' },
+  'ta-IN': { name: 'Tamil', nativeName: 'தமிழ்', code: 'ta-IN' },
+  'te-IN': { name: 'Telugu', nativeName: 'తెలుగు', code: 'te-IN' },
+  'ml-IN': { name: 'Malayalam', nativeName: 'മലയാളം', code: 'ml-IN' },
+  'gu-IN': { name: 'Gujarati', nativeName: 'ગુજરાતી', code: 'gu-IN' },
+  'kn-IN': { name: 'Kannada', nativeName: 'ಕನ್ನಡ', code: 'kn-IN' },
+  'or-IN': { name: 'Odia', nativeName: 'ଓଡ଼ିଆ', code: 'or-IN' },
+  'pa-IN': { name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', code: 'pa-IN' }
 };
 
-const SUPPORTED_VOICES: Record<string, { lang: string; speaker: string; gender: string; name: string; }> = {
-  // English voices
-  'en-IN-vidya': { lang: 'en-IN', speaker: 'vidya', gender: 'female', name: 'Vidya (English)' },
-  'en-IN-anushka': { lang: 'en-IN', speaker: 'anushka', gender: 'female', name: 'Anushka (English)' },
-  'en-IN-manisha': { lang: 'en-IN', speaker: 'manisha', gender: 'female', name: 'Manisha (English)' },
-  'en-IN-arya': { lang: 'en-IN', speaker: 'arya', gender: 'female', name: 'Arya (English)' },
-  'en-IN-abhilash': { lang: 'en-IN', speaker: 'abhilash', gender: 'male', name: 'Abhilash (English)' },
-  'en-IN-karun': { lang: 'en-IN', speaker: 'karun', gender: 'male', name: 'Karun (English)' },
-  'en-IN-hitesh': { lang: 'en-IN', speaker: 'hitesh', gender: 'male', name: 'Hitesh (English)' },
-  
-  // Hindi voices (using same speakers but for Hindi)
-  'hi-IN-vidya': { lang: 'hi-IN', speaker: 'vidya', gender: 'female', name: 'Vidya (हिन्दी)' },
-  'hi-IN-anushka': { lang: 'hi-IN', speaker: 'anushka', gender: 'female', name: 'Anushka (हिन्दी)' },
-  'hi-IN-manisha': { lang: 'hi-IN', speaker: 'manisha', gender: 'female', name: 'Manisha (हिन्दी)' },
-  'hi-IN-abhilash': { lang: 'hi-IN', speaker: 'abhilash', gender: 'male', name: 'Abhilash (हिन्दी)' },
+// Fixed to only use Vidya speaker across all languages
+const getVoiceForLanguage = (languageCode: string) => {
+  return `${languageCode}-vidya`;
 };
 
 interface VoiceAssistantProps {
@@ -73,12 +65,32 @@ interface VoiceAssistantProps {
     deliverables: string[];
     timeline: string;
   };
+  // Enhanced campaign context for better negotiations
+  campaignData?: {
+    campaignId?: string;
+    briefSummary?: string;
+    targetAudience?: string;
+    keyTalkingPoints?: string[];
+    budget?: number;
+    timeline?: string;
+  };
+  selectedCreators?: Array<{
+    id: string;
+    name: string;
+    platform: string;
+    followers: number;
+    engagement: string;
+    pricing?: number;
+    email?: string;
+  }>;
 }
 
 const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   creatorName = "Creator",
   campaignTitle = "Campaign",
-  negotiationContext
+  negotiationContext,
+  campaignData,
+  selectedCreators = []
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -88,57 +100,86 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [negotiationId, setNegotiationId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  const [selectedVoice, setSelectedVoice] = useState<string>('en-IN-vidya'); // Default to Vidya
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en-IN'); // Default language
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en-IN');
+  const [optimizedMode, setOptimizedMode] = useState(true);
+  
+  // Silence detection state
+  const [silenceDetection, setSilenceDetection] = useState(true);
+  const [silenceTimeout, setSilenceTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  
+  // Performance monitoring
+  const [performanceMetrics, setPerformanceMetrics] = useState({
+    avgResponseTime: 0,
+    totalRequests: 0,
+    successRate: 100,
+    lastResponseTime: 0
+  });
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const silenceThreshold = 30; // Lower threshold for silence detection
+  const maxSilenceDuration = 2000; // 2 seconds of silence before auto-processing
+  
   const { toast } = useToast();
 
   // API configuration
   const isDevelopment = import.meta.env.DEV;
   const API_BASE_URL = isDevelopment ? '/api' : 'https://influencerflow.onrender.com/api';
 
-  useEffect(() => {
-    return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-    };
+  // Enhanced welcome messages for all languages
+  const getWelcomeMessage = useCallback((language: string, campaignTitle: string, creatorName: string, isCallingMode = false) => {
+    if (isCallingMode) {
+      // Calling mode messages - casual and conversational like a real phone call
+      const callingMessages = {
+        'en-IN': `Hello ${creatorName}! This is Vidya calling about the ${campaignTitle} campaign. Do you have 2 minutes to discuss a collaboration opportunity?`,
+        'hi-IN': `नमस्ते ${creatorName}! मैं विद्या बोल रही हूं ${campaignTitle} कैंपेन के बारे में। क्या आपके पास 2 मिनट का समय है collaboration के बारे में बात करने के लिए?`,
+        'bn-IN': `নমস্কার ${creatorName}! আমি বিদ্যা বলছি ${campaignTitle} ক্যাম্পেইনের ব্যাপারে। ২ মিনিট সময় আছে কোলাবরেশন নিয়ে কথা বলার জন্য?`,
+        'ta-IN': `வணக்கம் ${creatorName}! நான் வித்யா, ${campaignTitle} campaign பத்தி பேசறதுக்கு கூப்பிட்டேன். 2 நிமிஷம் இருக்கா collaboration discuss பண்ணலாமா?`,
+        'te-IN': `నమస్కారం ${creatorName}! నేను విద్య మాట్లాడుతున్నాను ${campaignTitle} campaign గురించి। 2 నిమిషాలు సమయం ఉందా collaboration గురించి మాట్లాడుకోవడానికి?`,
+        'ml-IN': `ഹലോ ${creatorName}! ഞാൻ വിദ്യ സംസാരിക്കുന്നു ${campaignTitle} campaign നെ കുറിച്ച്. 2 മിനിറ്റ് സമയം ഉണ്ടോ collaboration നെ കുറിച്ച് സംസാരിക്കാൻ?`,
+        'gu-IN': `નમસ્તે ${creatorName}! હું વિદ્યા બોલું છું ${campaignTitle} campaign વિશે। ૨ મિનિટ સમય છે collaboration વિશે વાત કરવા માટે?`,
+        'kn-IN': `ನಮಸ್ತೆ ${creatorName}! ನಾನು ವಿದ್ಯಾ ಮಾತಾಡುತ್ತಿದ್ದೇನೆ ${campaignTitle} campaign ಬಗ್ಗೆ। 2 ನಿಮಿಷ ಸಮಯ ಇದೆಯಾ collaboration ಬಗ್ಗೆ ಮಾತನಾಡಲು?`,
+        'or-IN': `ନମସ୍କାର ${creatorName}! ମୁଁ ବିଦ୍ୟା କହୁଛି ${campaignTitle} campaign ବିଷୟରେ। ୨ ମିନିଟ୍ ସମୟ ଅଛି କି collaboration ବିଷୟରେ କଥା ହେବାକୁ?`,
+        'pa-IN': `ਸਤ ਸ੍ਰੀ ਅਕਾਲ ${creatorName}! ਮੈਂ ਵਿਦਿਆ ਬੋਲ ਰਹੀ ਹਾਂ ${campaignTitle} campaign ਬਾਰੇ। ਕੀ ਤੁਹਾਡੇ ਕੋਲ 2 ਮਿੰਟ ਦਾ ਸਮਾਂ ਹੈ collaboration ਬਾਰੇ ਗੱਲ ਕਰਨ ਲਈ?`
+      };
+      return callingMessages[language as keyof typeof callingMessages] || callingMessages['en-IN'];
+    } else {
+      // Regular welcome messages (for non-calling mode)
+      const welcomeMessages = {
+        'en-IN': `Hello! I'm Vidya, your AI negotiation assistant powered by Sarvam AI. I'm here to help you negotiate the ${campaignTitle} campaign with ${creatorName}. I have access to campaign details, creator analytics, and market rates to ensure the best deal. How can I assist you today?`,
+        'hi-IN': `नमस्ते! मैं विद्या हूं, Sarvam AI द्वारा संचालित आपकी AI वार्ता सहायक। मैं ${creatorName} के साथ ${campaignTitle} अभियान की बातचीत में आपकी सहायता करने के लिए यहां हूं। मेरे पास अभियान विवरण, निर्माता विश्लेषण और बाजार दरों तक पहुंच है ताकि सबसे अच्छा सौदा सुनिश्चित हो सके। आज मैं आपकी कैसे सहायता कर सकती हूं?`,
+        'bn-IN': `হ্যালো! আমি বিদ্যা, Sarvam AI দ্বারা চালিত আপনার AI আলোচনা সহায়ক। আমি ${creatorName} এর সাথে ${campaignTitle} প্রচারাভিযানের আলোচনায় আপনাকে সাহায্য করতে এখানে আছি। সেরা চুক্তি নিশ্চিত করতে আমার প্রচারাভিযানের বিবরণ, নির্মাতা বিশ্লেষণ এবং বাজার হারের অ্যাক্সেস রয়েছে। আজ আমি কীভাবে আপনাকে সহায় করতে পারি?`,
+        'ta-IN': `வணக்கம்! நான் வித்யா, Sarvam AI ஆல் இயக்கப்படும் உங்கள் AI பேச்சுவார்த்தை உதவியாளர். ${creatorName} உடன் ${campaignTitle} பிரச்சாரத்தை பேச்சுவார்த்தை நடத்த உதவ நான் இங்கே இருக்கிறேன். சிறந்த ஒப்பந்தம் கிடைக்க பிரச்சார விவரங்கள், படைப்பாளர் பகுப்பாய்வு மற்றும் சந்தை விலைகளுக்கான அணுகல் என்னிடம் உள்ளது। இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?`,
+        'te-IN': `నమస్కారం! నేను విద్య, Sarvam AI చే శక్తివంతం చేయబడిన మీ AI చర్చల సహాయకురాలిని। ${creatorName} తో ${campaignTitle} ప్రచారం చర్చలలో మీకు సహాయం చేయడానికి నేను ఇక్కడ ఉన్నాను। ఉత్తమ ఒప్పందం అందించడానికి ప్రచార వివరాలు, సృష్టికర్త విశ్లేషణలు మరియు మార్కెట్ రేట్లకు నా దగ్గర ప్రవేశనముంటు। ఈరోజు నేను మీకు ఎలా సహాయం చేయగలను?`,
+        'ml-IN': `ഹലോ! ഞാൻ വിദ്യ, നിങ്ങളുടെ AI ചർച്ചാ സഹായിയാണ്। ${creatorName} നോടൊപ്പം ${campaignTitle} കാമ്പെയ്‌നിന്റെ പേരിൽ സഹകരണ അവസരത്തെക്കുറിച്ച് ചർച്ച ചെയ്യാൻ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്। മികച്ച ഇടപാട് ഉറപ്പാക്കാൻ കാമ്പെയ്‌ൻ വിവരങ്ങളുമുണ്ട്, ഈ പങ്കാളിത്തത്തിനായി മികച്ച നിബന്ധനകൾ ചർച്ച ചെയ്യാൻ കഴിയും. നമുക്ക് ചർച്ച ആരംഭിക്കാമോ?`,
+        'gu-IN': `નમસ્તે ${creatorName}! હું વિદ્યા બોલું છું ${campaignTitle} campaign વિશે। ૨ મિનિટ સમય છે collaboration વિશે વાત કરવા માટે?`,
+        'kn-IN': `ನಮಸ್ತೆ ${creatorName}! ನಾನು ವಿದ್ಯಾ ಮಾತಾಡುತ್ತಿದ್ದೇನೆ ${campaignTitle} campaign ಬಗ್ಗೆ। 2 ನಿಮಿಷ ಸಮಯ ಇದೆಯಾ collaboration ಬಗ್ಗೆ ಮಾತನಾಡಲು?`,
+        'or-IN': `ନମସ୍କାର ${creatorName}! ମୁଁ ବିଦ୍ୟା କହୁଛି ${campaignTitle} campaign ବିଷୟରେ। ୨ ମିନିଟ୍ ସମୟ ଅଛି କି collaboration ବିଷୟରେ କଥା ହେବାକୁ?`,
+        'pa-IN': `ਸਤ ਸ੍ਰੀ ਅਕਾਲ ${creatorName}! ਮੈਂ ਵਿਦਿਆ ਬੋਲ ਰਹੀ ਹਾਂ ${campaignTitle} campaign ਬਾਰੇ। ਕੀ ਤੁਹਾਡੇ ਕੋਲ 2 ਮਿੰਟ ਦਾ ਸਮਾਂ ਹੈ collaboration ਬਾਰੇ ਗੱਲ ਕਰਨ ਲਈ?`
+      };
+      return welcomeMessages[language as keyof typeof welcomeMessages] || welcomeMessages['en-IN'];
+    }
   }, []);
 
-  // Filter voices by selected language
-  const getVoicesForLanguage = (languageCode: string) => {
-    return Object.entries(SUPPORTED_VOICES)
-      .filter(([key, voice]) => voice.lang === languageCode)
-      .reduce((acc, [key, voice]) => {
-        acc[key] = voice;
-        return acc;
-      }, {} as Record<string, typeof SUPPORTED_VOICES[string]>);
-  };
-
-  // Update voice when language changes
-  useEffect(() => {
-    const voicesForLanguage = getVoicesForLanguage(selectedLanguage);
-    const voiceKeys = Object.keys(voicesForLanguage);
-    
-    if (voiceKeys.length > 0) {
-      // Try to keep Vidya if available in the new language, otherwise pick first voice
-      const vidyaVoice = voiceKeys.find(key => key.includes('vidya'));
-      const newVoice = vidyaVoice || voiceKeys[0];
-      setSelectedVoice(newVoice);
-    }
-  }, [selectedLanguage]);
-
+  // Enhanced audio context initialization with optimizations
   const initializeAudioContext = async () => {
     if (!audioContextRef.current) {
       try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        // Create AudioContext without forcing sample rate - let browser choose
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+          latencyHint: 'interactive'
+        });
         
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
         }
+        
+        console.log('AudioContext initialized with sample rate:', audioContextRef.current.sampleRate);
       } catch (error) {
         console.error('Failed to initialize AudioContext:', error);
         toast({
@@ -150,26 +191,120 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
+  // Silence detection using audio analysis with better error handling
+  const setupSilenceDetection = useCallback((stream: MediaStream) => {
+    if (!audioContextRef.current || !silenceDetection) return;
+
+    try {
+      // Check if AudioContext is in the right state
+      if (audioContextRef.current.state !== 'running') {
+        console.log('AudioContext not running, skipping silence detection');
+        return;
+      }
+
+      // Create a new AudioContext specifically for this stream if needed
+      let audioContext = audioContextRef.current;
+      
+      // Get the stream's sample rate
+      const track = stream.getAudioTracks()[0];
+      if (track) {
+        const settings = track.getSettings();
+        console.log('Stream settings:', settings);
+        
+        // If sample rates don't match, create a compatible context
+        if (settings.sampleRate && settings.sampleRate !== audioContext.sampleRate) {
+          console.log(`Sample rate mismatch: Context=${audioContext.sampleRate}, Stream=${settings.sampleRate}`);
+          // For now, skip silence detection to avoid the error
+          console.log('Skipping silence detection due to sample rate mismatch');
+          return;
+        }
+      }
+
+      const source = audioContext.createMediaStreamSource(stream);
+      analyserRef.current = audioContext.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      dataArrayRef.current = new Uint8Array(bufferLength);
+      
+      source.connect(analyserRef.current);
+      
+      const checkSilence = () => {
+        if (!analyserRef.current || !dataArrayRef.current || !isRecording) return;
+        
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        
+        // Calculate average volume
+        const average = dataArrayRef.current.reduce((sum, value) => sum + value, 0) / dataArrayRef.current.length;
+        
+        if (average < silenceThreshold && isRecording) {
+          if (!silenceTimeout) {
+            const timeout = setTimeout(() => {
+              if (isRecording) {
+                console.log('Auto-stopping due to silence detection');
+                stopRecording();
+              }
+            }, maxSilenceDuration);
+            setSilenceTimeout(timeout);
+          }
+        } else {
+          // Clear silence timeout if audio detected
+          if (silenceTimeout) {
+            clearTimeout(silenceTimeout);
+            setSilenceTimeout(null);
+          }
+        }
+        
+        if (isRecording) {
+          requestAnimationFrame(checkSilence);
+        }
+      };
+      
+      checkSilence();
+    } catch (error) {
+      console.error('Failed to setup silence detection:', error);
+      // Don't show user error, just log it and continue without silence detection
+    }
+  }, [silenceDetection, isRecording, silenceTimeout]);
+
+  // Enhanced negotiation initialization with campaign context
   const initializeNegotiation = async () => {
     try {
       await initializeAudioContext();
       
       setConnectionStatus('connecting');
       
+      // Build enhanced context for better negotiations
+      const enhancedContext = {
+        creatorName,
+        campaignTitle,
+        negotiationContext,
+        campaignData,
+        selectedCreators,
+        strategy: 'collaborative',
+        mode: 'voice_chat',
+        voiceKey: getVoiceForLanguage(selectedLanguage),
+        languageCode: selectedLanguage,
+        optimizedMode,
+        silenceDetection,
+        // Enhanced campaign context
+        campaignContext: {
+          budget: campaignData?.budget || negotiationContext?.budget || 25000,
+          timeline: campaignData?.timeline || negotiationContext?.timeline || '2 weeks',
+          deliverables: negotiationContext?.deliverables || ['Instagram Posts', 'Stories'],
+          keyTalkingPoints: campaignData?.keyTalkingPoints || [],
+          targetAudience: campaignData?.targetAudience || '',
+          briefSummary: campaignData?.briefSummary || campaignTitle,
+          creatorMetrics: selectedCreators.length > 0 ? selectedCreators[0] : null
+        }
+      };
+
       const response = await fetch(`${API_BASE_URL}/calling/initiate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          creatorName,
-          campaignTitle,
-          negotiationContext,
-          strategy: 'collaborative',
-          mode: 'voice_chat',
-          voiceKey: selectedVoice,
-          languageCode: selectedLanguage,
-        }),
+        body: JSON.stringify(enhancedContext),
       });
 
       if (!response.ok) {
@@ -180,26 +315,22 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       setNegotiationId(data.negotiationId);
       setConnectionStatus('connected');
       
-      // Add welcome message in selected language
-      const welcomeMessages = {
-        'en-IN': `Hello! I'm your AI negotiation assistant powered by Sarvam AI for the ${campaignTitle} campaign with ${creatorName}. I can help you negotiate terms, discuss pricing, and handle contract details using advanced speech recognition and natural language processing. How can I assist you today?`,
-        'hi-IN': `नमस्ते! मैं ${creatorName} के साथ ${campaignTitle} अभियान के लिए Sarvam AI द्वारा संचालित आपका AI बातचीत सहायक हूं। मैं उन्नत भाषण पहचान और प्राकृतिक भाषा प्रसंस्करण का उपयोग करके शर्तों पर बातचीत करने, मूल्य निर्धारण पर चर्चा करने और अनुबंध विवरण संभालने में आपकी सहायता कर सकता हूं। आज मैं आपकी कैसे सहायता कर सकता हूं?`,
-      };
-      
+      // Add contextual welcome message
       const welcomeMessage: VoiceMessage = {
         id: Date.now().toString(),
         type: 'assistant',
-        text: welcomeMessages[selectedLanguage as keyof typeof welcomeMessages] || welcomeMessages['en-IN'],
-        timestamp: new Date()
+        text: getWelcomeMessage(selectedLanguage, campaignTitle, creatorName, true),
+        timestamp: new Date(),
+        language: selectedLanguage
       };
       setMessages([welcomeMessage]);
       
-      // Speak the welcome message using Sarvam AI TTS
+      // Speak the welcome message
       await speakText(welcomeMessage.text);
       
       toast({
-        title: 'Voice Assistant Ready',
-        description: `Connected with ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].name} support using Sarvam AI.`,
+        title: 'Vidya Assistant Ready',
+        description: `Connected in ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].nativeName} with optimized performance.`,
       });
     } catch (error) {
       console.error('Failed to initialize negotiation:', error);
@@ -212,23 +343,27 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
+  // Optimized recording with enhanced audio settings
   const startRecording = async () => {
     try {
       await initializeAudioContext();
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
-          sampleRate: 16000, // Sarvam AI works best with 16kHz
-          channelCount: 1,   // Mono audio
+          channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true
+          // Removed sampleRate constraint to let browser choose compatible rate
         } 
       });
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
+      streamRef.current = stream;
+      
+      // Use optimal recording configuration for Sarvam AI compatibility
+      const options = AudioConverter.getOptimalRecordingConfig();
+      
+      const mediaRecorder = new MediaRecorder(stream, options);
       
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -240,19 +375,34 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await processAudioInput(audioBlob);
+        const originalMimeType = options.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: originalMimeType });
+        await processAudioInput(audioBlob, originalMimeType);
         
-        // Stop all tracks to release microphone
-        stream.getTracks().forEach(track => track.stop());
+        // Clean up
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
       };
 
-      mediaRecorder.start();
+      // Setup silence detection
+      if (silenceDetection) {
+        try {
+          setupSilenceDetection(stream);
+        } catch (error) {
+          console.warn('Silence detection setup failed, continuing without it:', error);
+          // Continue without silence detection
+        }
+      }
+
+      mediaRecorder.start(100); // Collect data every 100ms for responsive processing
       setIsRecording(true);
+      setIsListening(true);
       
       toast({
         title: 'Recording Started',
-        description: `Speak now in ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].name}. Using Sarvam AI speech recognition.`,
+        description: `Speak in ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].nativeName}. Auto-detection enabled.`,
       });
 
     } catch (error) {
@@ -269,18 +419,31 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsListening(false);
+      
+      // Clear silence timeout
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
+        setSilenceTimeout(null);
+      }
     }
   };
 
-  const processAudioInput = async (audioBlob: Blob) => {
+  // Enhanced audio processing with performance tracking
+  const processAudioInput = async (audioBlob: Blob, originalMimeType?: string) => {
+    const startTime = Date.now();
     try {
       setIsProcessing(true);
       
-      // Convert audio blob to base64 for Sarvam AI
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      // For debugging, let's skip conversion and send WebM directly to see exact error
+      let processedBlob = audioBlob;
+      let finalMimeType = originalMimeType || 'audio/webm';
       
-      const selectedVoiceConfig = SUPPORTED_VOICES[selectedVoice];
+      console.log('Skipping audio conversion for debugging - sending', finalMimeType, 'directly to Sarvam AI');
+      
+      // Convert audio blob to base64 for Sarvam AI
+      const arrayBuffer = await processedBlob.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
       
       const response = await fetch(`${API_BASE_URL}/calling/process-audio`, {
         method: 'POST',
@@ -289,9 +452,18 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         },
         body: JSON.stringify({
           audioData: base64Audio,
-          languageCode: selectedVoiceConfig.lang,
+          languageCode: selectedLanguage,
           negotiationId,
-          mimeType: 'audio/webm'
+          mimeType: finalMimeType,
+          optimizedMode,
+          campaignContext: {
+            budget: campaignData?.budget || negotiationContext?.budget,
+            timeline: campaignData?.timeline || negotiationContext?.timeline,
+            deliverables: negotiationContext?.deliverables,
+            keyTalkingPoints: campaignData?.keyTalkingPoints,
+            targetAudience: campaignData?.targetAudience,
+            creatorMetrics: selectedCreators.length > 0 ? selectedCreators[0] : null
+          }
         }),
       });
 
@@ -305,39 +477,74 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         throw new Error(data.error || 'Unknown error');
       }
 
+      console.log('STT Response:', data); // Debug log
+      console.log('STT Provider:', data.provider);
+      console.log('STT Fallback:', data.fallback);
+      console.log('Original audio size:', audioBlob.size, 'bytes');
+      console.log('Processed audio size:', processedBlob.size, 'bytes');
+      console.log('Final MIME type sent:', finalMimeType);
+
       // Add user message
       const userMessage: VoiceMessage = {
         id: Date.now().toString(),
         type: 'user',
         text: data.transcript,
-        timestamp: new Date()
+        timestamp: new Date(),
+        language: selectedLanguage
       };
       
-      // Add AI response
+      // Add AI response  
       const aiMessage: VoiceMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
         text: data.aiResponse,
-        timestamp: new Date()
+        timestamp: new Date(),
+        language: selectedLanguage
       };
 
       setMessages(prev => [...prev, userMessage, aiMessage]);
       
-      // Play AI response if audio is available
+      // Show notification if using fallback STT
+      if (data.fallback) {
+        toast({
+          title: 'Using Mock STT',
+          description: `Voice recognition not working properly. Showing example response instead.`,
+          variant: 'destructive',
+        });
+      }
+      
+      // Play AI response
       if (data.audioResponse) {
         await playAudioResponse(data.audioResponse);
       } else {
-        // Fallback to text-to-speech if no audio returned
         await speakText(data.aiResponse);
       }
 
+      // Update performance metrics
+      const responseTime = Date.now() - startTime;
+      setPerformanceMetrics(prev => ({
+        avgResponseTime: (prev.avgResponseTime * prev.totalRequests + responseTime) / (prev.totalRequests + 1),
+        totalRequests: prev.totalRequests + 1,
+        successRate: (prev.totalRequests * prev.successRate + 100) / (prev.totalRequests + 1),
+        lastResponseTime: responseTime
+      }));
+
+      const sttStatus = data.fallback ? 'Mock STT' : 'Real STT';
       toast({
         title: 'Message Processed',
-        description: `Voice message processed successfully in ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].name}.`,
+        description: `${sttStatus} - Response in ${responseTime}ms using ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].nativeName}`,
       });
 
     } catch (error) {
       console.error('Failed to process audio:', error);
+      
+      // Update error metrics
+      setPerformanceMetrics(prev => ({
+        ...prev,
+        successRate: (prev.totalRequests * prev.successRate) / Math.max(prev.totalRequests + 1, 1),
+        totalRequests: prev.totalRequests + 1
+      }));
+      
       toast({
         title: 'Processing Failed',
         description: 'Could not process your voice message. Please try again.',
@@ -348,11 +555,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
+  // Enhanced TTS with language consistency
   const speakText = async (text: string) => {
     try {
       setIsSpeaking(true);
-      
-      const selectedVoiceConfig = SUPPORTED_VOICES[selectedVoice];
       
       const response = await fetch(`${API_BASE_URL}/calling/text-to-speech`, {
         method: 'POST',
@@ -361,9 +567,10 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         },
         body: JSON.stringify({
           text,
-          languageCode: selectedVoiceConfig.lang,
-          speaker: selectedVoiceConfig.speaker,
-          negotiationId
+          languageCode: selectedLanguage,
+          speaker: 'vidya', // Always use Vidya
+          negotiationId,
+          optimizedMode
         }),
       });
 
@@ -386,6 +593,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
   };
 
+  // Optimized audio playback
   const playAudioResponse = async (audioBase64: string) => {
     try {
       await initializeAudioContext();
@@ -395,6 +603,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       const audioUrl = URL.createObjectURL(audioBlob);
       
       const audio = new Audio(audioUrl);
+      audio.playbackRate = optimizedMode ? 1.1 : 1.0; // Slightly faster in optimized mode
       
       audio.onplay = () => setIsSpeaking(true);
       audio.onended = () => {
@@ -431,6 +640,12 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setMessages([]);
     setNegotiationId(null);
     setConnectionStatus('disconnected');
+    
+    // Clean up streams
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -439,6 +654,21 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       minute: '2-digit' 
     });
   };
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
+      }
+    };
+  }, [silenceTimeout]);
 
   if (!isOpen) {
     return (
@@ -468,9 +698,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   )}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Sarvam AI Assistant</h3>
+                  <h3 className="font-semibold text-sm">Vidya AI Assistant</h3>
                   <p className="text-xs text-muted-foreground">
-                    {connectionStatus === 'connected' ? `${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].name} • Vidya` : 'Click to connect'}
+                    {connectionStatus === 'connected' ? `📞 On call with ${creatorName}` : 'Click to connect'}
                   </p>
                 </div>
               </div>
@@ -501,7 +731,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   return (
     <div className="fixed bottom-6 right-6 z-50">
-      <Card className="w-96 h-[650px] bg-white/95 backdrop-blur-sm border shadow-2xl flex flex-col">
+      <Card className="w-96 h-[700px] bg-white/95 backdrop-blur-sm border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
           <div className="flex items-center gap-3">
@@ -512,9 +742,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               )}
             </div>
             <div>
-              <h3 className="font-semibold">Sarvam AI Assistant</h3>
+              <h3 className="font-semibold">Vidya AI Assistant</h3>
               <p className="text-sm text-muted-foreground">
-                {connectionStatus === 'connected' ? `Negotiating: ${campaignTitle}` : 'Click to connect'}
+                {connectionStatus === 'connected' ? `📞 Calling: ${creatorName}` : 'Click to connect'}
               </p>
             </div>
           </div>
@@ -538,9 +768,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           </div>
         </div>
 
-        {/* Language and Voice Selection */}
+        {/* Language Selection Only */}
         <div className="p-3 border-b bg-gray-50/50 space-y-3">
-          {/* Language Selection */}
           <div className="flex items-center gap-2">
             <Languages className="h-4 w-4 text-blue-600" />
             <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
@@ -550,27 +779,40 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               <SelectContent>
                 {Object.entries(SUPPORTED_LANGUAGES).map(([code, lang]) => (
                   <SelectItem key={code} value={code}>
-                    {lang.name}
+                    {lang.nativeName} ({lang.name})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Voice Selection */}
-          <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Voice" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(getVoicesForLanguage(selectedLanguage)).map(([key, voice]) => (
-                <SelectItem key={key} value={key}>
-                  {voice.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Optimization Settings */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm">Optimized Mode</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOptimizedMode(!optimizedMode)}
+              className={optimizedMode ? 'bg-yellow-100 border-yellow-300' : ''}
+            >
+              {optimizedMode ? 'ON' : 'OFF'}
+            </Button>
+          </div>
         </div>
+
+        {/* Performance Metrics */}
+        {connectionStatus === 'connected' && optimizedMode && (
+          <div className="p-2 border-b bg-green-50/50">
+            <div className="flex justify-between text-xs text-green-700">
+              <span>Avg: {Math.round(performanceMetrics.avgResponseTime)}ms</span>
+              <span>Success: {Math.round(performanceMetrics.successRate)}%</span>
+              <span>Last: {Math.round(performanceMetrics.lastResponseTime)}ms</span>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <ScrollArea className="flex-1 p-4">
@@ -578,27 +820,35 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`flex gap-2 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <div className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center ${
-                    message.type === 'user' 
-                      ? 'bg-blue-100 text-blue-600' 
-                      : 'bg-purple-100 text-purple-600'
-                  }`}>
-                    {message.type === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  </div>
-                  <div className={`rounded-lg p-3 ${
-                    message.type === 'user' 
-                      ? 'bg-blue-500 text-white' 
+                <div
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    message.type === 'user'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    <p className="text-sm leading-relaxed">{message.text}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                    }`}>
-                      {formatTime(message.timestamp)}
-                    </p>
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    {message.type === 'assistant' && (
+                      <Bot className="h-4 w-4 mt-1 flex-shrink-0" />
+                    )}
+                    {message.type === 'user' && (
+                      <User className="h-4 w-4 mt-1 flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm">{message.text}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
+                        {formatTime(message.timestamp)}
+                        {message.language && (
+                          <span className="ml-2">
+                            • {SUPPORTED_LANGUAGES[message.language as keyof typeof SUPPORTED_LANGUAGES]?.nativeName}
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -606,7 +856,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           </div>
         </ScrollArea>
 
-        {/* Status and Controls */}
+        {/* Controls */}
         <div className="p-4 border-t bg-gray-50/50">
           {connectionStatus !== 'connected' ? (
             <Button 
@@ -617,33 +867,38 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               {connectionStatus === 'connecting' ? (
                 <>
                   <PhoneCall className="mr-2 h-4 w-4 animate-pulse" />
-                  Connecting to Sarvam AI...
+                  Connecting to {creatorName}...
                 </>
               ) : (
                 <>
                   <Phone className="mr-2 h-4 w-4" />
-                  Start Voice Negotiation
+                  Call {creatorName}
                 </>
               )}
             </Button>
           ) : (
             <div className="space-y-3">
               {/* Status indicators */}
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 flex-wrap">
                 {isRecording && (
                   <Badge variant="destructive" className="animate-pulse">
-                    Recording...
+                    {isListening ? '🎤 Listening...' : 'Recording...'}
                   </Badge>
                 )}
                 {isProcessing && (
                   <Badge variant="secondary" className="animate-pulse">
-                    Processing with Sarvam AI...
+                    Processing...
                   </Badge>
                 )}
                 {isSpeaking && (
                   <Badge variant="outline" className="animate-pulse">
                     <Volume2 className="mr-1 h-3 w-3" />
-                    Speaking
+                    Vidya Speaking
+                  </Badge>
+                )}
+                {silenceDetection && isRecording && (
+                  <Badge variant="outline" className="text-xs">
+                    Auto-detect ON
                   </Badge>
                 )}
               </div>
@@ -672,7 +927,9 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               </Button>
 
               <p className="text-xs text-center text-muted-foreground">
-                Powered by Sarvam AI • {SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].name} • Vidya voice
+                Vidya Voice • {SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].nativeName}
+                {optimizedMode && ' • ⚡ Optimized'}
+                {silenceDetection && ' • 🤫 Auto-detect'}
               </p>
             </div>
           )}

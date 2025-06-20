@@ -15,69 +15,103 @@ router.post('/initiate', async (req, res) => {
       creatorName = 'Creator',
       campaignTitle = 'Campaign',
       negotiationContext = {},
+      campaignData = {},
+      selectedCreators = [],
       strategy = 'collaborative',
       mode = 'voice_chat',
       voiceKey = DEFAULT_VOICE_CONFIG.voiceKey, // Default to Vidya
-      languageCode = DEFAULT_VOICE_CONFIG.languageCode
+      languageCode = DEFAULT_VOICE_CONFIG.languageCode,
+      optimizedMode = true,
+      silenceDetection = true,
+      campaignContext = {}
     } = req.body;
 
-    console.log(`[VoiceAgent] Initiating negotiation with voice: ${voiceKey}, language: ${languageCode}`);
+    console.log(`[VoiceAgent] Initiating negotiation with voice: ${voiceKey}, language: ${languageCode}, optimized: ${optimizedMode}`);
 
-    // Validate voice selection
-    const selectedVoice = SUPPORTED_VOICES[voiceKey];
+    // Validate voice selection - always use Vidya for consistency
+    const actualVoiceKey = `${languageCode}-vidya`;
+    const selectedVoice = SUPPORTED_VOICES[actualVoiceKey];
     if (!selectedVoice) {
-      return res.status(400).json({
-        success: false,
-        error: `Voice ${voiceKey} not supported`,
-        supportedVoices: Object.keys(SUPPORTED_VOICES)
-      });
+      // Fallback to default Vidya voice
+      const fallbackVoiceKey = DEFAULT_VOICE_CONFIG.voiceKey;
+      console.warn(`Voice ${actualVoiceKey} not found, using fallback: ${fallbackVoiceKey}`);
     }
 
     // Generate unique negotiation ID
     const negotiationId = `nego_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Enhanced negotiation context with campaign data
+    const enhancedContext = {
+      ...negotiationContext,
+      ...campaignContext,
+      campaignData,
+      selectedCreators,
+      optimizedMode,
+      silenceDetection
+    };
     
     // Store negotiation context
     const negotiationData = {
       id: negotiationId,
       creatorName,
       campaignTitle,
-      negotiationContext,
+      negotiationContext: enhancedContext,
+      campaignData,
+      selectedCreators,
       strategy,
       mode,
-      voiceKey,
+      voiceKey: actualVoiceKey,
       languageCode,
-      voice: selectedVoice,
+      voice: selectedVoice || SUPPORTED_VOICES[DEFAULT_VOICE_CONFIG.voiceKey],
+      optimizedMode,
+      silenceDetection,
       status: 'active',
       startTime: new Date(),
       messageHistory: [],
-      lastActivity: new Date()
+      lastActivity: new Date(),
+      performanceMetrics: {
+        avgResponseTime: 0,
+        totalRequests: 0,
+        successRate: 100
+      }
     };
     
     activeNegotiations.set(negotiationId, negotiationData);
 
-    // Initialize voice agent session
+    // Initialize voice agent session with enhanced context
     const initResult = await voiceAgent.initializeNegotiation({
       negotiationId,
       creatorName,
       campaignTitle,
-      negotiationContext,
+      negotiationContext: enhancedContext,
+      campaignData,
+      selectedCreators,
       strategy,
-      voiceKey,
-      languageCode
+      voiceKey: actualVoiceKey,
+      languageCode,
+      optimizedMode
     });
 
     res.json({
       success: true,
       negotiationId,
-      voice: selectedVoice,
+      voice: selectedVoice || SUPPORTED_VOICES[DEFAULT_VOICE_CONFIG.voiceKey],
       language: SUPPORTED_LANGUAGES[languageCode],
+      optimizedMode,
+      silenceDetection,
       config: {
         sampleRate: 16000,
         channelCount: 1,
         echoCancellation: true,
-        noiseSuppression: true
+        noiseSuppression: true,
+        optimizedLatency: optimizedMode
       },
-      message: `Negotiation session started with ${selectedVoice.name} voice in ${SUPPORTED_LANGUAGES[languageCode]?.name || 'English'}`
+      campaignContext: {
+        hasCampaignData: !!campaignData.briefSummary,
+        hasSelectedCreators: selectedCreators.length > 0,
+        hasKeyTalkingPoints: !!(campaignData.keyTalkingPoints && campaignData.keyTalkingPoints.length > 0)
+      },
+      message: `Negotiation session started with Vidya voice in ${SUPPORTED_LANGUAGES[languageCode]?.nativeName || 'English'}`
     });
 
   } catch (error) {
@@ -91,8 +125,16 @@ router.post('/initiate', async (req, res) => {
 
 // Process audio input (STT + AI + TTS)
 router.post('/process-audio', async (req, res) => {
+  const startTime = Date.now();
   try {
-    const { audioData, languageCode = 'en-IN', negotiationId, mimeType = 'audio/webm' } = req.body;
+    const { 
+      audioData, 
+      languageCode = 'en-IN', 
+      negotiationId, 
+      mimeType = 'audio/webm',
+      optimizedMode = true,
+      campaignContext = {}
+    } = req.body;
 
     if (!audioData) {
       return res.status(400).json({
@@ -117,29 +159,53 @@ router.post('/process-audio', async (req, res) => {
       });
     }
 
-    console.log(`[CallingRoutes] Processing audio for negotiation: ${negotiationId}, language: ${languageCode}`);
+    console.log(`[CallingRoutes] Processing audio for negotiation: ${negotiationId}, language: ${languageCode}, optimized: ${optimizedMode}`);
 
     // Convert base64 audio to buffer
     const audioBuffer = Buffer.from(audioData, 'base64');
+    
+    // Enhanced context with campaign data
+    const enhancedContext = {
+      ...negotiation,
+      campaignContext: {
+        ...negotiation.negotiationContext,
+        ...campaignContext,
+        campaignData: negotiation.campaignData,
+        selectedCreators: negotiation.selectedCreators
+      },
+      optimizedMode: optimizedMode || negotiation.optimizedMode
+    };
     
     // Process with voice agent
     const result = await voiceAgent.processVoiceInput({
       audioBuffer,
       languageCode,
       negotiationId,
-      context: negotiation,
-      mimeType
+      context: enhancedContext,
+      mimeType,
+      optimizedMode: optimizedMode || negotiation.optimizedMode
     });
 
-    // Update negotiation activity
+    // Calculate response time
+    const responseTime = Date.now() - startTime;
+
+    // Update negotiation activity and performance metrics
     negotiation.lastActivity = new Date();
     negotiation.messageHistory.push({
       timestamp: new Date(),
       type: 'voice_interaction',
       userInput: result.transcript,
       aiResponse: result.aiResponse,
-      languageCode
+      languageCode,
+      responseTime,
+      optimized: optimizedMode || negotiation.optimizedMode
     });
+
+    // Update performance metrics
+    const metrics = negotiation.performanceMetrics;
+    metrics.avgResponseTime = (metrics.avgResponseTime * metrics.totalRequests + responseTime) / (metrics.totalRequests + 1);
+    metrics.totalRequests += 1;
+    metrics.successRate = (metrics.totalRequests * metrics.successRate + 100) / metrics.totalRequests;
 
     res.json({
       success: true,
@@ -149,19 +215,41 @@ router.post('/process-audio', async (req, res) => {
       negotiationId,
       language: languageCode,
       voice: negotiation.voice.name,
+      optimizedMode: optimizedMode || negotiation.optimizedMode,
       processing: {
         sttTime: result.timing?.stt || 0,
         aiTime: result.timing?.ai || 0,
         ttsTime: result.timing?.tts || 0,
-        totalTime: result.timing?.total || 0
+        totalTime: result.timing?.total || responseTime,
+        optimized: optimizedMode || negotiation.optimizedMode
+      },
+      performance: {
+        responseTime,
+        avgResponseTime: Math.round(metrics.avgResponseTime),
+        successRate: Math.round(metrics.successRate),
+        totalRequests: metrics.totalRequests
+      },
+      campaignContext: {
+        hasContext: !!(campaignContext.budget || campaignContext.deliverables),
+        contextUsed: result.contextUsed || false
       }
     });
 
   } catch (error) {
     console.error('[CallingRoutes] Audio processing failed:', error);
+    
+    // Update error metrics if negotiation exists
+    const negotiation = activeNegotiations.get(req.body.negotiationId);
+    if (negotiation) {
+      const metrics = negotiation.performanceMetrics;
+      metrics.successRate = (metrics.totalRequests * metrics.successRate) / Math.max(metrics.totalRequests + 1, 1);
+      metrics.totalRequests += 1;
+    }
+    
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to process audio input'
+      error: error.message || 'Failed to process audio input',
+      responseTime: Date.now() - startTime
     });
   }
 });
@@ -172,8 +260,9 @@ router.post('/text-to-speech', async (req, res) => {
     const { 
       text, 
       languageCode = 'en-IN', 
-      speaker = 'vidya', // Default to Vidya
-      negotiationId 
+      speaker = 'vidya', // Always default to Vidya
+      negotiationId,
+      optimizedMode = true
     } = req.body;
 
     if (!text) {
@@ -183,30 +272,38 @@ router.post('/text-to-speech', async (req, res) => {
       });
     }
 
-    console.log(`[CallingRoutes] TTS request: "${text.substring(0, 50)}..." with speaker: ${speaker}, language: ${languageCode}`);
+    console.log(`[CallingRoutes] TTS request: "${text.substring(0, 50)}..." with Vidya voice, language: ${languageCode}, optimized: ${optimizedMode}`);
 
-    // Find appropriate voice key
-    const voiceKey = `${languageCode}-${speaker}`;
+    // Always use Vidya voice for consistency
+    const voiceKey = `${languageCode}-vidya`;
     const voiceConfig = SUPPORTED_VOICES[voiceKey];
     
     if (!voiceConfig) {
-      // Fallback to Vidya in the requested language or default
-      const fallbackVoiceKey = `${languageCode}-vidya` in SUPPORTED_VOICES 
-        ? `${languageCode}-vidya` 
-        : DEFAULT_VOICE_CONFIG.voiceKey;
-      
+      // Fallback to default Vidya voice
+      const fallbackVoiceKey = DEFAULT_VOICE_CONFIG.voiceKey;
       console.log(`[CallingRoutes] Voice ${voiceKey} not found, using fallback: ${fallbackVoiceKey}`);
     }
 
-    const result = await voiceAgent.textToSpeech(text, voiceKey || `${languageCode}-vidya`, languageCode);
+    const result = await voiceAgent.textToSpeech(
+      text, 
+      voiceKey || DEFAULT_VOICE_CONFIG.voiceKey, 
+      languageCode,
+      { optimizedMode }
+    );
 
     res.json({
       success: true,
       audioData: result.audioData,
-      voice: result.voice,
+      voice: result.voice || 'Vidya',
       text: text,
       languageCode,
-      provider: result.provider || 'Sarvam AI'
+      speaker: 'vidya',
+      optimizedMode,
+      provider: result.provider || 'Sarvam AI',
+      processing: {
+        ttsTime: result.timing?.tts || 0,
+        optimized: optimizedMode
+      }
     });
 
   } catch (error) {

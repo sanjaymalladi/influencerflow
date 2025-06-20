@@ -4,6 +4,8 @@ interface Creator {
   email: string;
   channelName?: string;
   contactEmail?: string;
+  niche?: string;
+  categories?: string[];
 }
 
 interface Campaign {
@@ -60,12 +62,12 @@ class RealOutreachService {
             
             <p>I hope this email finds you well! I'm ${senderInfo.name} from ${senderInfo.company}.</p>
             
-            <p>I've been following your excellent work in ${creator.niche || 'your niche'} and I believe you'd be a perfect fit for our latest campaign: <strong>${campaign.name}</strong>.</p>
+            <p>I've been following your excellent work in ${creator.niche || (creator.categories && creator.categories.length > 0 ? creator.categories[0] : 'your niche')} and I believe you'd be a perfect fit for our latest campaign: <strong>${campaign.name}</strong>.</p>
             
             <h3 style="color: #444;">Campaign Details:</h3>
             <ul>
               <li><strong>Campaign:</strong> ${campaign.name}</li>
-              <li><strong>Budget:</strong> $${campaign.budget?.toLocaleString() || 'TBD'}</li>
+                              <li><strong>Budget:</strong> ₹${((campaign.budget || 0) * 83).toLocaleString() || 'TBD'}</li>
               <li><strong>Deliverables:</strong> ${campaign.deliverables || 'Content creation'}</li>
               <li><strong>Timeline:</strong> ${campaign.timeline || '2-3 weeks'}</li>
             </ul>

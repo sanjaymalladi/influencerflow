@@ -130,7 +130,7 @@ data/
 
 # Local scripts
 local-*.js
-temp-*.js
+temp-*.js 
 
 # Binary files and archives
 *.zip
