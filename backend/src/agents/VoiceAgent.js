@@ -283,7 +283,8 @@ class VoiceAgent extends EventEmitter {
         creatorContext: creatorInfo
       });
 
-      return response.content || response.message || 'Got it! What do you want to do next?';
+      // The Sarvam AI service returns enhanced fallback responses in response.response
+      return response.response || response.content || response.message || 'Got it! What do you want to do next?';
 
     } catch (error) {
       this.addLog(`AI response generation failed: ${error.message}`, 'error');

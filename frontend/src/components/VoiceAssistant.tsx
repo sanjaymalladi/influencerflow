@@ -435,11 +435,26 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     try {
       setIsProcessing(true);
       
-      // For debugging, let's skip conversion and send WebM directly to see exact error
+      // Use proper audio conversion for Sarvam AI compatibility
       let processedBlob = audioBlob;
       let finalMimeType = originalMimeType || 'audio/webm';
       
-      console.log('Skipping audio conversion for debugging - sending', finalMimeType, 'directly to Sarvam AI');
+      console.log('🎤 [STT] Converting audio for Sarvam AI compatibility');
+      console.log('🎤 [STT] Original:', audioBlob.size, 'bytes,', finalMimeType);
+      
+      // Convert WebM to WAV for Sarvam AI compatibility
+      if (AudioConverter.isConversionSupported() && (finalMimeType.includes('webm') || finalMimeType.includes('mp4'))) {
+        try {
+          processedBlob = await AudioConverter.webmToWav(audioBlob);
+          finalMimeType = 'audio/wav';
+          console.log('🎤 [STT] Converted to WAV:', processedBlob.size, 'bytes');
+        } catch (error) {
+          console.warn('🎤 [STT] Audio conversion failed, using original:', error);
+          // Continue with original blob
+        }
+      }
+      
+      console.log('🎤 [STT] Sending to backend:', finalMimeType, processedBlob.size, 'bytes');
       
       // Convert audio blob to base64 for Sarvam AI
       const arrayBuffer = await processedBlob.arrayBuffer();
@@ -477,12 +492,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         throw new Error(data.error || 'Unknown error');
       }
 
-      console.log('STT Response:', data); // Debug log
-      console.log('STT Provider:', data.provider);
-      console.log('STT Fallback:', data.fallback);
-      console.log('Original audio size:', audioBlob.size, 'bytes');
-      console.log('Processed audio size:', processedBlob.size, 'bytes');
-      console.log('Final MIME type sent:', finalMimeType);
+      console.log('🎤 [STT] Response:', data.provider, data.fallback ? '(Fallback)' : '(Real)');
 
       // Add user message
       const userMessage: VoiceMessage = {
@@ -504,12 +514,17 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       setMessages(prev => [...prev, userMessage, aiMessage]);
       
-      // Show notification if using fallback STT
+      // Enhanced notification system
       if (data.fallback) {
         toast({
           title: 'Using Mock STT',
           description: `Voice recognition not working properly. Showing example response instead.`,
           variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Voice Processed Successfully! 🎤',
+          description: `Real STT working - Response in ${Date.now() - startTime}ms`,
         });
       }
       
@@ -528,12 +543,6 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         successRate: (prev.totalRequests * prev.successRate + 100) / (prev.totalRequests + 1),
         lastResponseTime: responseTime
       }));
-
-      const sttStatus = data.fallback ? 'Mock STT' : 'Real STT';
-      toast({
-        title: 'Message Processed',
-        description: `${sttStatus} - Response in ${responseTime}ms using ${SUPPORTED_LANGUAGES[selectedLanguage as keyof typeof SUPPORTED_LANGUAGES].nativeName}`,
-      });
 
     } catch (error) {
       console.error('Failed to process audio:', error);

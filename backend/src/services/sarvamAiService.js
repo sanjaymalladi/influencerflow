@@ -60,18 +60,18 @@ class SarvamAiService {
       'pa-IN-anushka': { lang: 'pa-IN', speaker: 'anushka', gender: 'female', name: 'Anushka (ਪੰਜਾਬੀ)' },
     };
 
-    // Language mappings for Sarvam AI API
+    // Language mappings for Sarvam AI API (VERIFIED)
     this.languageMappings = {
-      'en-IN': 'en',
-      'hi-IN': 'hi',
-      'bn-IN': 'bn',
-      'ta-IN': 'ta',
-      'te-IN': 'te',
-      'ml-IN': 'ml',
-      'gu-IN': 'gu',
-      'kn-IN': 'kn',
-      'or-IN': 'or',
-      'pa-IN': 'pa'
+      'en-IN': 'en-IN',   // English (India)
+      'hi-IN': 'hi-IN',   // Hindi (India)
+      'bn-IN': 'bn-IN',   // Bengali (India)
+      'ta-IN': 'ta-IN',   // Tamil (India)
+      'te-IN': 'te-IN',   // Telugu (India) - FIXED: Must be te-IN, not te
+      'ml-IN': 'ml-IN',   // Malayalam (India)
+      'gu-IN': 'gu-IN',   // Gujarati (India)
+      'kn-IN': 'kn-IN',   // Kannada (India)
+      'od-IN': 'od-IN',   // Odia (India) - Fixed from 'or-IN' to 'od-IN'
+      'pa-IN': 'pa-IN'    // Punjabi (India)
     };
 
     // Default voice is now Vidya
@@ -120,9 +120,11 @@ class SarvamAiService {
       }, {});
   }
 
-  // Convert language code to Sarvam API format
+  // Convert language code to Sarvam API format (ENHANCED)
   mapLanguageCode(languageCode) {
-    return this.languageMappings[languageCode] || 'en';
+    const mappedCode = this.languageMappings[languageCode] || 'en-IN';
+    console.log(`🔤 [Language Mapping] ${languageCode} → ${mappedCode}`);
+    return mappedCode;
   }
 
   /**
@@ -182,14 +184,9 @@ class SarvamAiService {
       const sarvamLang = this.mapLanguageCode(languageCode);
       this.addLog(`Mapped language ${languageCode} to ${sarvamLang} for Sarvam API`);
       
-      // Try automatic language detection for better results
-      // For Sarvam AI v2.5, language_code is optional and it can auto-detect
-      if (sarvamLang !== 'en') {
-        formData.append('language_code', sarvamLang);
-        this.addLog(`Using explicit language code: ${sarvamLang}`);
-      } else {
-        this.addLog('Using automatic language detection');
-      }
+      // Always send language code
+      formData.append('language_code', sarvamLang);
+      this.addLog(`Using explicit language code: ${sarvamLang}`);
 
       this.addLog(`Sending STT request to Sarvam AI with filename: ${filename}, contentType: ${contentType}`);
 
@@ -375,7 +372,7 @@ class SarvamAiService {
   }
 
   /**
-   * Chat Completion using Sarvam AI
+   * Chat Completion using Sarvam AI API
    * @param {Array} messages - Array of message objects with role and content
    * @param {string} languageCode - Language code (e.g., 'en-IN', 'hi-IN')
    * @param {Object} context - Context for the conversation
@@ -383,53 +380,49 @@ class SarvamAiService {
    */
   async chatCompletion(messages, languageCode = 'en-IN', context = null) {
     if (!this.isConfigured) {
-      this.addLog('Sarvam AI not configured, returning mock chat response', 'warn');
-      
-      const mockResponses = {
-        'en-IN': "Thank you for your message. I understand you'd like to discuss the campaign terms. Let's work together to find a mutually beneficial agreement.",
-        'hi-IN': "आपके संदेश के लिए धन्यवाद। मैं समझता हूं कि आप अभियान की शर्तों पर चर्चा करना चाहते हैं। आइए मिलकर एक पारस्परिक रूप से लाभकारी समझौता खोजें।",
-        'bn-IN': "আপনার বার্তার জন্য ধন্যবাদ। আমি বুঝতে পারি যে আপনি ক্যাম্পেইনের শর্তাদি নিয়ে আলোচনা করতে চান। আসুন একসাথে একটি পারস্পরিক উপকারী চুক্তি খুঁজে বের করি।",
-        'ta-IN': "உங்கள் செய்திக்கு நன்றி. பிரச்சார விதிமுறைகளைப் பற்றி நீங்கள் விவாதிக்க விரும்புகிறீர்கள் என்பதை நான் புரிந்துகொள்கிறேன். பரஸ்பர நன்மை பயக்கும் ஒப்பந்தத்தைக் கண்டறிய ஒன்றாக வேலை செய்வோம்."
-      };
-      
-      return {
-        success: true,
-        response: mockResponses[languageCode] || mockResponses['en-IN'],
-        provider: 'Sarvam AI (Mock)',
-        language: languageCode
-      };
+      this.addLog('Sarvam AI not configured, using enhanced fallback', 'warn');
+      return this.getEnhancedFallbackResponse(languageCode);
     }
 
     try {
-      this.addLog(`Processing chat completion with ${messages.length} messages`);
+      this.addLog('Using Sarvam AI Chat Completions API', 'info');
       
-      // Format messages for Sarvam AI
-      const conversationHistory = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
+      // Create context-aware system message based on language and campaign context
+      let systemPrompt = this.createSystemPrompt(languageCode, context);
+      
+      // Combine any additional system messages into the main system prompt (Sarvam AI requirement)
+      const systemMessages = messages.filter(msg => msg.role === "system");
+      if (systemMessages.length > 0) {
+        const additionalContext = systemMessages.map(msg => msg.content || msg.text).join('\n\n');
+        systemPrompt = `${systemPrompt}\n\n${additionalContext}`;
+      }
+      
+      // Prepare messages array with only user and assistant messages
+      const conversationMessages = messages.filter(msg => msg.role !== "system").map(msg => ({
+        role: msg.role || "user",
+        content: msg.content || msg.text || ""
       }));
-
-      // Add context-aware system message based on language
-      const systemMessages = {
-        'en-IN': "You are a professional AI negotiation assistant helping with influencer marketing campaigns. Be collaborative, understanding, and focused on finding mutually beneficial solutions.",
-        'hi-IN': "आप एक पेशेवर AI बातचीत सहायक हैं जो प्रभावशाली मार्केटिंग अभियानों में सहायता करते हैं। सहयोगी, समझदार बनें और पारस्परिक रूप से लाभकारी समाधान खोजने पर ध्यान दें।",
-        'bn-IN': "আপনি একজন পেশাদার AI আলোচনা সহায়ক যিনি প্রভাবশালী মার্কেটিং প্রচারাভিযানে সহায়তা করেন। সহযোগিতামূলক, বোধগম্য হন এবং পারস্পরিক উপকারী সমাধান খোঁজার উপর মনোনিবেশ করুন।"
-      };
-
-      const systemMessage = systemMessages[languageCode] || systemMessages['en-IN'];
       
+      const apiMessages = [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        ...conversationMessages
+      ];
+
       const requestData = {
-        model: 'sarvam-m',
-        messages: [
-          { role: 'system', content: systemMessage },
-          ...conversationHistory
-        ],
-        max_tokens: 500,
+        messages: apiMessages,
+        model: "sarvam-m",
         temperature: 0.7,
-        top_p: 0.9
+        max_tokens: 100,
+        top_p: 0.9,
+        n: 1
       };
 
-      const response = await axios.post(`${this.baseUrl}/chat/completions`, requestData, {
+      this.addLog(`Chat completion request: ${JSON.stringify(requestData, null, 2)}`);
+
+      const response = await axios.post(`${this.baseUrl}/v1/chat/completions`, requestData, {
         headers: {
           'api-subscription-key': this.apiKey,
           'Content-Type': 'application/json'
@@ -439,38 +432,91 @@ class SarvamAiService {
 
       if (response.data && response.data.choices && response.data.choices[0]) {
         const aiResponse = response.data.choices[0].message.content;
-        this.addLog(`Chat completion successful`);
+        this.addLog(`Chat completion successful: "${aiResponse.substring(0, 50)}..."`);
         
         return {
           success: true,
           response: aiResponse,
           provider: 'Sarvam AI',
           language: languageCode,
-          usage: response.data.usage
+          model: 'sarvam-m',
+          usage: response.data.usage || null
         };
       } else {
-        throw new Error('No response received from Sarvam AI chat completion');
+        throw new Error('No response from chat completion API');
       }
 
     } catch (error) {
       this.addLog(`Chat completion failed: ${error.message}`, 'error');
+      if (error.response) {
+        this.addLog(`Chat Error Response: ${JSON.stringify(error.response.data)}`, 'error');
+      }
       
-      // Fallback responses in different languages
-      const fallbackResponses = {
-        'en-IN': "I appreciate your input on this campaign. Let's discuss how we can create a successful partnership that works for everyone involved.",
-        'hi-IN': "इस अभियान पर आपके इनपुट की मैं सराहना करता हूं। आइए चर्चा करें कि हम एक सफल साझेदारी कैसे बना सकते हैं जो सभी शामिल लोगों के लिए काम करे।",
-        'bn-IN': "এই প্রচারণায় আপনার ইনপুটের জন্য আমি কৃতজ্ঞ। আসুন আলোচনা করি যে আমরা কীভাবে একটি সফল অংশীদারিত্ব তৈরি করতে পারি যা জড়িত সবার জন্য কাজ করে।",
-        'ta-IN': "இந்த பிரச்சாரத்தில் உங்கள் உள்ளீட்டை நான் பாராட்டுகிறேன். சம்பந்தப்பட்ட அனைவருக்கும் பயனுள்ள ஒரு வெற்றிகரமான கூட்டாண்மையை எவ்வாறு உருவாக்குவது என்பதைப் பற்றி விவாதிக்கலாம்."
-      };
-      
-      return {
-        success: true,
-        response: fallbackResponses[languageCode] || fallbackResponses['en-IN'],
-        provider: 'Sarvam AI (Fallback)',
-        language: languageCode,
-        fallback: true
-      };
+      // Fallback to enhanced responses
+      this.addLog('Falling back to enhanced contextual responses', 'info');
+      return this.getEnhancedFallbackResponse(languageCode);
     }
+  }
+
+  /**
+   * Create system prompt based on language and context
+   * @param {string} languageCode - Language code
+   * @param {Object} context - Campaign context
+   * @returns {string} System prompt
+   */
+  createSystemPrompt(languageCode, context) {
+    const prompts = {
+      'hi-IN': `आप एक professional influencer marketing negotiator हैं। आप Meta RayBan smart glasses campaign के लिए creators के साथ collaboration discuss कर रहे हैं। Natural Hindi में बात करें और helpful, professional responses दें। Campaign details: premium tech product, target audience: young professionals।`,
+      'te-IN': `మీరు ఒక professional influencer marketing negotiator. Meta RayBan smart glasses campaign కోసం creators తో collaboration discuss చేస్తున్నారు. Natural Telugu లో మాట్లాడండి మరియు helpful, professional responses ఇవ్వండి। Campaign details: premium tech product, target audience: young professionals.`,
+      'en-IN': `You are a professional influencer marketing negotiator discussing collaboration opportunities for Meta RayBan smart glasses campaign. Speak naturally and provide helpful, professional responses. Campaign details: premium tech product, target audience: young professionals.`
+    };
+
+    return prompts[languageCode] || prompts['en-IN'];
+  }
+
+  /**
+   * Get enhanced fallback response when API fails
+   * @param {string} languageCode - Language code
+   * @returns {Object} Fallback response
+   */
+  getEnhancedFallbackResponse(languageCode) {
+    const contextualResponses = {
+      'hi-IN': [
+        "इस collaboration में आपकी interest समझ आ रही है। Campaign requirements और compensation के बारे में और details बता सकता हूं।",
+        "Target audience के बारे में अच्छा सवाल! यह campaign tech-savvy young professionals के लिए है जो innovative wearable technology में interested हैं।",
+        "Deliverables के बारे में बढ़िया question! हम authentic content चाहते हैं - एक detailed video review और 2-3 Instagram posts।",
+        "Budget के बारे में बात करते हैं। आपके follower count और engagement rate के base पर competitive rates offer करते हैं।",
+        "Timeline में flexibility है। आपके schedule के according dates discuss कर सकते हैं।",
+        "यह Meta RayBan smart glasses campaign बहुत exciting है! Technology enthusiasts के लिए perfect है।"
+      ],
+      'te-IN': [
+        "ఈ collaboration లో మీ ఆసక్తి అర్థమవుతుంది. Campaign requirements మరియు compensation గురించి మరిన్ని వివరాలు చెప్పగలను.",
+        "Target audience గురించి మీ ప్రశ్నకు ధన్యవాదాలు. ఈ campaign innovative tech products లో interested ఉన్న young professionals కోసం design చేయబడింది.",
+        "Deliverables గురించి మంచి ప్రశ్న! మేము authentic content కోసం చూస్తున్నాము - ఒక short video review మరియు 2-3 Instagram posts.",
+        "Budget గురించి మాట్లాడుకుందాం. మీ follower count మరియు engagement rate base మీద competitive rates offer చేస్తాము.",
+        "Timeline flexibility ఉంది. మీ schedule తో suit అయ్యే dates discuss చేయవచ్చు.",
+        "ఈ Meta RayBan smart glasses campaign very exciting! Technology enthusiasts మీద focus చేస్తున్నాము."
+      ],
+      'en-IN': [
+        "I understand your interest in this collaboration. Let me share more details about the campaign requirements and compensation structure.",
+        "Great question about the target audience! This campaign targets tech-savvy young professionals interested in innovative wearable technology.",
+        "For deliverables, we're looking for authentic content - one detailed video review and 2-3 Instagram posts showcasing the product naturally.",
+        "Regarding budget, we offer competitive rates based on your follower count and engagement metrics. Let's discuss what works for you.",
+        "We have flexibility on timeline. We can work around your content schedule to find suitable dates.",
+        "This Meta RayBan smart glasses campaign is really exciting! Perfect for creators who love tech innovation."
+      ]
+    };
+    
+    const responses = contextualResponses[languageCode] || contextualResponses['en-IN'];
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    
+    return {
+      success: true,
+      response: randomResponse,
+      provider: 'Enhanced Fallback',
+      language: languageCode,
+      fallback: true
+    };
   }
 
   /**

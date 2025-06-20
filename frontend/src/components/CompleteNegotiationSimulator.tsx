@@ -844,37 +844,83 @@ InfluencerFlow Team
 
       case NegotiationStage.NEGOTIATION_COMPLETE:
         return (
-          <div className="p-8 bg-gradient-to-br from-green-50 to-green-100 rounded-lg text-center border border-green-200">
+          <div className="p-8 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg text-center border border-green-200">
             <h2 className="text-2xl font-bold mb-4 text-green-800 flex items-center justify-center">
               <CheckCircle className="w-6 h-6 mr-2" />
-              🎉 Partnership Complete!
+              ✅ Negotiation Complete!
             </h2>
-            <p className="text-green-700 mb-4">
-              Contract signed and partnership finalized! Now waiting for deliverables and processing payment.
+            <p className="text-green-700 mb-6">
+              Contract signed and partnership finalized! Moving to content delivery phase.
             </p>
-            <div className="bg-green-100 p-4 rounded-lg mb-4 border border-green-200">
-              <h3 className="font-semibold text-green-800 mb-2">Final Terms:</h3>
-              <ul className="text-green-700 text-sm space-y-1">
-                <li>• {currentTerms.videoLengthMinutes}-minute video</li>
-                <li>• {currentTerms.instagramPosts} Instagram posts</li>
-                <li>• ${currentTerms.compensation} compensation</li>
-                <li>• {currentTerms.timeline} timeline</li>
+            
+            <div className="bg-green-100 p-4 rounded-lg mb-6 border border-green-200">
+              <h3 className="font-semibold text-green-800 mb-3">📋 Final Agreement Summary:</h3>
+              <div className="grid grid-cols-2 gap-2 text-green-700 text-sm">
+                <div className="text-left">
+                  <strong>Content:</strong> {currentTerms.videoLengthMinutes}-min video + {currentTerms.instagramPosts} posts
+                </div>
+                <div className="text-left">
+                  <strong>Compensation:</strong> ${currentTerms.compensation}
+                </div>
+                <div className="text-left">
+                  <strong>Timeline:</strong> {currentTerms.timeline}
+                </div>
+                <div className="text-left">
+                  <strong>Payment:</strong> {currentTerms.paymentTerms}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-orange-50 p-4 rounded-lg mb-6 border border-orange-200">
+              <h4 className="font-semibold text-orange-800 mb-2 flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                💳 Payment Status: PENDING
+              </h4>
+              <ul className="text-orange-700 text-sm space-y-1">
+                <li>✅ Contract signed and filed</li>
+                <li>⏳ Awaiting content deliverables from {contact.name}</li>
+                <li>💳 Payment will be processed after delivery verification</li>
+                <li>📧 Automated reminders activated</li>
               </ul>
             </div>
-            <div className="space-y-2">
+
+            <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
+              <h4 className="font-semibold text-blue-800 mb-2">🎯 Campaign Status: ACTIVE</h4>
+              <div className="text-blue-700 text-sm">
+                <p>✅ Negotiation: <span className="font-semibold">COMPLETE</span></p>
+                <p>⏳ Content Delivery: <span className="font-semibold">PENDING</span></p>
+                <p>💳 Payment: <span className="font-semibold">PENDING DELIVERY</span></p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-center">
+                <p className="text-sm text-green-600 font-medium">
+                  🎉 Negotiation workflow completed successfully!
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Campaign now enters delivery & payment processing phase
+                </p>
+              </div>
+              
+              {onComplete && (
+                <Button 
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={onComplete}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  👈 Back to Campaign Dashboard
+                </Button>
+              )}
+              
               <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                variant="outline" 
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
                 onClick={resetNegotiation}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                🔄 Start New Negotiation
+                🔄 Try Another Negotiation
               </Button>
-              {onComplete && (
-                <Button variant="outline" className="w-full border-gray-300 text-gray-700 hover:bg-gray-50" onClick={onComplete}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  👈 Back to Main View
-                </Button>
-              )}
             </div>
           </div>
         );
