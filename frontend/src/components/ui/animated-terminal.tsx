@@ -36,11 +36,11 @@ const getLogIcon = (type: LogEntry['type']) => {
 
 const getLogColor = (type: LogEntry['type']) => {
   switch (type) {
-    case 'success': return 'text-green-400';
-    case 'error': return 'text-red-400';
-    case 'processing': return 'text-blue-400';
-    case 'warning': return 'text-yellow-400';
-    default: return 'text-gray-300';
+    case 'success': return 'text-green-600';
+    case 'error': return 'text-red-600';
+    case 'processing': return 'text-blue-600';
+    case 'warning': return 'text-amber-600';
+    default: return 'text-gray-700';
   }
 };
 
@@ -88,10 +88,10 @@ export function AnimatedTerminal({
   return (
     <div className={cn("relative", className)}>
       {showProgress && (
-        <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-300">AI Campaign Progress</span>
-            <span className="text-xs text-gray-500">
+            <span className="text-sm font-medium text-slate-700">AI Campaign Progress</span>
+            <span className="text-xs text-slate-500">
               {progressSteps.filter(step => step.completed).length}/{progressSteps.length}
             </span>
           </div>
@@ -101,16 +101,16 @@ export function AnimatedTerminal({
                 <div className={cn(
                   "h-2 rounded-full transition-all duration-500",
                   step.completed 
-                    ? "bg-gradient-to-r from-green-400 to-blue-400" 
-                    : "bg-gray-600"
+                    ? "bg-gradient-to-r from-green-500 to-blue-500" 
+                    : "bg-slate-200"
                 )}>
                   {step.completed && (
-                    <div className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full"></div>
+                    <div className="h-full bg-gradient-to-r from-green-500 to-blue-500 rounded-full"></div>
                   )}
                 </div>
                 <span className={cn(
                   "text-xs mt-1 block transition-colors",
-                  step.completed ? "text-green-400" : "text-gray-500"
+                  step.completed ? "text-green-600" : "text-slate-500"
                 )}>
                   {step.label}
                 </span>
@@ -121,37 +121,37 @@ export function AnimatedTerminal({
       )}
 
       <div 
-                 className={cn(
-           "bg-gray-900 rounded-lg border border-gray-700 overflow-hidden",
-           "relative backdrop-blur-sm terminal-glow",
-           height
-         )}
+        className={cn(
+          "bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm",
+          "relative backdrop-blur-sm",
+          height
+        )}
       >
         {/* Terminal Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
           <div className="flex items-center space-x-2">
             <div className="flex space-x-1">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+              <div className="w-3 h-3 bg-amber-400 rounded-full"></div>
+              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
             </div>
-            <span className="text-sm font-mono text-gray-300">AI Agent Terminal</span>
+            <span className="text-sm font-mono text-slate-700">AI Agent Console</span>
           </div>
           <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse opacity-70" style={{animationDuration: '2s'}}></div>
-            <span className="text-xs text-gray-400">ACTIVE</span>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse opacity-70" style={{animationDuration: '2s'}}></div>
+            <span className="text-xs text-slate-600">ACTIVE</span>
           </div>
         </div>
 
         {/* Terminal Content */}
-                 <div 
-           ref={scrollRef}
-           className="p-4 overflow-y-auto font-mono text-sm space-y-2 terminal-scroll"
-           style={{ maxHeight: 'calc(100% - 60px)' }}
-         >
+        <div 
+          ref={scrollRef}
+          className="p-4 overflow-y-auto font-mono text-sm space-y-2 bg-white"
+          style={{ maxHeight: 'calc(100% - 60px)' }}
+        >
           {displayedLogs.length === 0 ? (
-            <div className="flex items-center space-x-2 text-gray-500">
-                              <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse opacity-50" style={{animationDuration: '2s'}}></div>
+            <div className="flex items-center space-x-2 text-slate-500">
+              <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse opacity-50" style={{animationDuration: '2s'}}></div>
               <span>AI agents ready... Upload a campaign brief to begin.</span>
             </div>
           ) : (
@@ -169,11 +169,11 @@ export function AnimatedTerminal({
         {typingLogId && (
           <div className="absolute bottom-4 left-4 flex items-center space-x-1">
             <div className="flex space-x-1">
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce"></div>
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce"></div>
+              <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+              <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
             </div>
-            <span className="text-xs text-blue-400 ml-2">AI thinking...</span>
+            <span className="text-xs text-blue-600 ml-2">AI thinking...</span>
           </div>
         )}
       </div>
@@ -213,27 +213,27 @@ function AnimatedLogEntry({ log, isTyping }: AnimatedLogEntryProps) {
     }
   }, [isTyping, log.message]);
 
-     return (
-     <div className={cn(
-       "flex items-start space-x-2 transition-all duration-300",
-       "hover:bg-gray-800/50 p-2 rounded log-entry-enter",
-       isTyping ? "animate-pulse" : ""
-     )}>
-      <span className="text-xs text-gray-500 w-16 flex-shrink-0">
+  return (
+    <div className={cn(
+      "flex items-start space-x-2 transition-all duration-300",
+      "hover:bg-slate-50 p-2 rounded log-entry-enter",
+      isTyping ? "animate-pulse" : ""
+    )}>
+      <span className="text-xs text-slate-500 w-16 flex-shrink-0">
         {log.timestamp}
       </span>
-             <span className="flex-shrink-0">
-         {log.type === 'processing' ? (
-           <CustomSpinner size="sm" color="#60A5FA" />
-         ) : (
-           getLogIcon(log.type)
-         )}
-       </span>
+      <span className="flex-shrink-0">
+        {log.type === 'processing' ? (
+          <CustomSpinner size="sm" color="#2563EB" />
+        ) : (
+          getLogIcon(log.type)
+        )}
+      </span>
       <span className={cn("flex-1", getLogColor(log.type))}>
         {displayText}
-                 {showCursor && (
-           <span className="typing-cursor text-white">|</span>
-         )}
+        {showCursor && (
+          <span className="typing-cursor text-slate-800">|</span>
+        )}
       </span>
     </div>
   );

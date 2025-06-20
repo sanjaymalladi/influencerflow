@@ -294,7 +294,7 @@ router.post('/process-real-negotiation', async (req, res) => {
         const { 
             campaignId,
             creatorEmails,
-            budgetConstraints = { maxBudget: 2000, negotiationLimit: 0.1 }
+            budgetConstraints = { maxBudget: 166000, negotiationLimit: 0.1 }
         } = req.body;
 
         if (!campaignId || !creatorEmails || !Array.isArray(creatorEmails)) {
@@ -357,7 +357,7 @@ router.post('/start-real-negotiation', async (req, res) => {
             creatorId,
             creatorEmail,
             terms: negotiationTerms || {
-                budget: 2000,
+                budget: 166000,
                 deliverables: 'Video content and social posts',
                 timeline: '2-3 weeks'
             }

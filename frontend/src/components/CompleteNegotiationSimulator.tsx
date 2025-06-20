@@ -110,7 +110,7 @@ Great to hear you're interested! I'm excited to share more details about the col
 • Standard FTC disclosure requirements
 • One round of minor revisions included
 
-The compensation of $1200 covers all deliverables with payment split 50% upfront, 50% on delivery.
+The compensation of ₹99,600 covers all deliverables with payment split 50% upfront, 50% on delivery.
 
 Does this sound good to you? Any questions or concerns?
 
@@ -119,7 +119,7 @@ InfluencerFlow Team`
   },
   {
     stage: 2,
-    sanjayReply: `Thanks for the detailed information! The compensation of $1200 sounds fair for the scope of work.
+    sanjayReply: `Thanks for the detailed information! The compensation of ₹99,600 sounds fair for the scope of work.
 
 I have one concern about the 15-minute video requirement. Based on my analytics, my audience retention typically drops significantly after 10 minutes. Would it be possible to create a 10-minute video instead? I believe this would actually deliver better engagement and results for the campaign.
 
@@ -146,7 +146,7 @@ Please type your decision:`
 The terms we've discussed sound good:
 - 10-minute sponsored video
 - 2 Instagram posts  
-- $1200 compensation
+- ₹99,600 compensation
 - 3-week timeline
 
 I'm ready to move forward with these deliverables. What are the next steps?
@@ -174,7 +174,7 @@ Sanjay`,
 const DEFAULT_TERMS: NegotiationTerms = {
   videoLengthMinutes: 15,
   instagramPosts: 0,
-  compensation: 1200,
+  compensation: 99600,
   timeline: '3 weeks',
   paymentTerms: '50% upfront, 50% on delivery',
   exclusivity: false,
@@ -234,7 +234,7 @@ I'm reaching out from InfluencerFlow about an exciting collaboration opportunity
 
 **Campaign Overview:**
 • Project: ${campaign.name}
-• Compensation: $${currentTerms.compensation}
+• Compensation: ₹${currentTerms.compensation.toLocaleString()}
 • Deliverables: 1 sponsored video (${currentTerms.videoLengthMinutes} minutes)
 • Timeline: ${currentTerms.timeline}
 • Payment: ${currentTerms.paymentTerms}
@@ -276,7 +276,7 @@ After discussing with my manager, we're happy to accommodate the 10-minute video
 **Updated Terms:**
 • 10-minute sponsored video (instead of 15 minutes)
 • 2 Instagram posts (new addition)  
-• Same compensation: $${currentTerms.compensation}
+• Same compensation: ₹${currentTerms.compensation.toLocaleString()}
 • Same timeline: ${currentTerms.timeline}
 
 This way we get quality engagement with your authentic style, and you get content that performs well with your audience. Does this work for you?
@@ -860,7 +860,7 @@ InfluencerFlow Team
                   <strong>Content:</strong> {currentTerms.videoLengthMinutes}-min video + {currentTerms.instagramPosts} posts
                 </div>
                 <div className="text-left">
-                  <strong>Compensation:</strong> ${currentTerms.compensation}
+                  <strong>Compensation:</strong> ₹{currentTerms.compensation.toLocaleString()}
                 </div>
                 <div className="text-left">
                   <strong>Timeline:</strong> {currentTerms.timeline}
@@ -965,7 +965,7 @@ InfluencerFlow Team
                   </div>
                   <div className="flex justify-between">
                     <span>Compensation:</span>
-                    <span>${currentTerms.compensation}</span>
+                    <span>₹{currentTerms.compensation.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Timeline:</span>

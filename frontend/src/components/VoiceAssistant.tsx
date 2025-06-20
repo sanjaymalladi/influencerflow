@@ -289,7 +289,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         silenceDetection,
         // Enhanced campaign context
         campaignContext: {
-          budget: campaignData?.budget || negotiationContext?.budget || 25000,
+          budget: campaignData?.budget || negotiationContext?.budget || 2075000,
           timeline: campaignData?.timeline || negotiationContext?.timeline || '2 weeks',
           deliverables: negotiationContext?.deliverables || ['Instagram Posts', 'Stories'],
           keyTalkingPoints: campaignData?.keyTalkingPoints || [],

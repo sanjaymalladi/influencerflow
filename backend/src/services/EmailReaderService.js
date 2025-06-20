@@ -191,7 +191,7 @@ Sarah`,
         };
 
         // Extract monetary amounts
-        const rateRegex = /\$(\d+(?:,\d+)?(?:\.\d{2})?)/g;
+        const rateRegex = /[₹$](\d+(?:,\d+)?(?:\.\d{2})?)/g;
         const rates = [];
         let match;
         while ((match = rateRegex.exec(emailText)) !== null) {

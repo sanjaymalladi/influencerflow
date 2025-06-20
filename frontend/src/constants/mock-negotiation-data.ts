@@ -174,8 +174,8 @@ export const mockData = {
       "aiAnalysis": {
         "video_length": "10 minutes",
         "instagram_posts": 2,
-        "compensation": 10000,
-        "currency": "USD",
+        "compensation": 830000,
+        "currency": "INR",
         "product": "Meta Ray-Ban Smart Glasses"
       },
       "status": "approved",
@@ -206,8 +206,8 @@ export const mockData = {
     "finalTerms": {
       "video_length": "10 minutes",
       "instagram_posts": 2,
-      "compensation": 10000,
-      "currency": "USD",
+      "compensation": 830000,
+      "currency": "INR",
       "product": "Meta Ray-Ban Smart Glasses"
     },
     "contractPdfUrl": "https://docs.google.com/document/d/1H6KCJMdkl0-86dwPvREwJ6um60Ac_JaN4jv9FyYgYNM/edit?usp=sharing",

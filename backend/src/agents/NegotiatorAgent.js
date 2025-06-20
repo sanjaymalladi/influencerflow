@@ -344,7 +344,7 @@ Thank you again for your consideration!`,
         
         // Replace budget placeholder if present
         if (template.content.includes('[BUDGET_RANGE]') && negotiationState.budgetConstraints.maxBudget) {
-            const budgetRange = `$${Math.round(negotiationState.budgetConstraints.maxBudget * 0.8)} - $${negotiationState.budgetConstraints.maxBudget}`;
+            const budgetRange = `₹${Math.round(negotiationState.budgetConstraints.maxBudget * 0.8).toLocaleString()} - ₹${negotiationState.budgetConstraints.maxBudget.toLocaleString()}`;
             template.content = template.content.replace('[BUDGET_RANGE]', budgetRange);
         }
 
@@ -414,7 +414,7 @@ Thank you again for your consideration!`,
             if (analysisText.includes('RECOMMENDED_ACTION: decline')) analysis.recommendedAction = 'decline';
 
             // Extract proposed amount
-            const amountMatch = analysisText.match(/PROPOSED_AMOUNT: \$?(\d+(?:,\d+)?)/);
+            const amountMatch = analysisText.match(/PROPOSED_AMOUNT: [₹$]?(\d+(?:,\d+)?)/);
             if (amountMatch) {
                 analysis.proposedAmount = parseFloat(amountMatch[1].replace(',', ''));
             }
@@ -446,7 +446,7 @@ Thank you again for your consideration!`,
         
         const min = Math.round(budgetConstraints.maxBudget * 0.7);
         const max = budgetConstraints.maxBudget;
-        return `$${min} - $${max}`;
+        return `₹${min.toLocaleString()} - ₹${max.toLocaleString()}`;
     }
 
     _generateCreatorId(email) {
@@ -470,7 +470,7 @@ SENTIMENT: [positive/neutral/negative]
 NEGOTIATION_POTENTIAL: [high/medium/low]
 RECOMMENDED_ACTION: [accept/negotiate/decline]
 RISK_LEVEL: [low/medium/high]
-PROPOSED_AMOUNT: [dollar amount if mentioned]
+PROPOSED_AMOUNT: [rupee amount if mentioned]
 
 REASONING:
 [Your analysis of the email, including key points about rates, timeline, sentiment, and negotiation potential]
@@ -559,10 +559,10 @@ Please provide recommendations for:
                 negotiationId,
                 campaignId,
                 contactId: creatorId,
-                budget: terms.budget || 2000,
+                budget: terms.budget || 166000,
                 deliverables: terms.deliverables || 'Video content and social posts',
                 timeline: terms.timeline || '2-3 weeks',
-                currentOffer: terms.budget || 2000,
+                currentOffer: terms.budget || 166000,
                 fromEmail: terms.fromEmail,
                 fromName: terms.fromName
             });
@@ -610,7 +610,7 @@ Please provide recommendations for:
             <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="margin-top: 0; color: #FFE600;">📋 Collaboration Details:</h3>
                 <ul style="list-style: none; padding: 0;">
-                    <li style="margin: 10px 0;"><strong>💰 Budget:</strong> $${terms.budget || 'Competitive compensation'}</li>
+                    <li style="margin: 10px 0;"><strong>💰 Budget:</strong> ₹${terms.budget?.toLocaleString() || 'Competitive compensation'}</li>
                     <li style="margin: 10px 0;"><strong>📹 Deliverables:</strong> ${terms.deliverables || 'Video content and social posts'}</li>
                     <li style="margin: 10px 0;"><strong>⏰ Timeline:</strong> ${terms.timeline || '2-3 weeks'}</li>
                 </ul>

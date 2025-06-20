@@ -81,7 +81,7 @@ Alex`,
 
 // Default Negotiation Terms
 export const DEFAULT_NEGOTIATION_TERMS: NegotiationTerms = {
-  compensation: 2000,
+  compensation: 166000,
   deliverables: '3 social media posts and 1 detailed review video',
   timeline: '4 weeks',
   revisions: '2 rounds included',

@@ -324,7 +324,7 @@ class NegotiationService {
           subject,
           body,
           senderInfo,
-          budget: 2000,
+          budget: 166000,
           deliverables: 'Video content and social posts',
           timeline: '2-3 weeks'
         }),

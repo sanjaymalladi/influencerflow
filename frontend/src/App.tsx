@@ -642,7 +642,7 @@ const App: React.FC = () => {
         creatorName={results.find(c => selectedCreators.includes(c.creatorId))?.name || "Selected Creator"}
         campaignTitle={campaignData?.briefSummary || "Current Campaign"}
         negotiationContext={{
-          budget: campaignData?.budget || 25000,
+          budget: campaignData?.budget || 2075000,
           deliverables: ["Instagram Posts", "Stories", "Reels"],
           timeline: "2 weeks"
         }}
@@ -651,7 +651,7 @@ const App: React.FC = () => {
           briefSummary: campaignData?.briefSummary,
           targetAudience: campaignData?.targetAudience,
           keyTalkingPoints: campaignData?.keyTalkingPoints,
-          budget: campaignData?.budget || 25000,
+          budget: campaignData?.budget || 2075000,
           timeline: "2 weeks"
         }}
         selectedCreators={selectedCreators.map(id => {

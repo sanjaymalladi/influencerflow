@@ -206,7 +206,7 @@ export const mockData = {
     "finalTerms": {
       "video_length": "10 minutes",
       "instagram_posts": 2,
-      "compensation": 10000,
+      "compensation": 830000,
       "currency": "USD",
       "product": "Meta Ray-Ban Smart Glasses"
     },

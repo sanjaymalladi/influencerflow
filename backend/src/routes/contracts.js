@@ -244,7 +244,7 @@ router.post('/demo', async (req, res) => {
       creatorEmail: 'demo@creator.com',
       brandName: 'InfluencerFlow Demo Brand',
       campaignTitle: 'Phase 3 Demo Campaign',
-      agreedAmount: 2000,
+              agreedAmount: 166000,
       paymentSchedule: [
         { phase: 'Contract Signing', amount: 500, dueDate: 'Upon signature' },
         { phase: 'Content Creation', amount: 1000, dueDate: '14 days after signature' },

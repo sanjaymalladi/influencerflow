@@ -294,7 +294,7 @@ class ReplyDetectionService {
     }
     
     // Extract budget mentions
-    const budgetMatch = text.match(/\$?(\d+(?:,\d+)*(?:\.\d+)?)/);
+    const budgetMatch = text.match(/[₹$]?(\d+(?:,\d+)*(?:\.\d+)?)/);
     if (budgetMatch) {
       info.budgetMention = parseFloat(budgetMatch[1].replace(/,/g, ''));
     }

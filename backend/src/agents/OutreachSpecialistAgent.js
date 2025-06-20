@@ -242,10 +242,10 @@ class OutreachSpecialistAgent {
       const result = await this.emailService.sendNegotiationEmail(emailData, {
         campaignId: campaign.id || campaign.campaignId,
         contactId: creator.id,
-        budget: campaign.budget || 2000,
+        budget: campaign.budget || 166000,
         deliverables: campaign.deliverables || 'Video content and social posts',
         timeline: campaign.timeline || '2-3 weeks',
-        currentOffer: campaign.budget || 2000,
+        currentOffer: campaign.budget || 166000,
         fromEmail: emailData.from,
         fromName: emailData.fromName
       });
